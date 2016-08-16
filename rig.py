@@ -162,6 +162,9 @@ class Rig:
           last_beam_damp = -1.0
           last_beam_deform = -1.0
           last_beam_strength = -1.0
+          last_beam_shortbound = -1.0
+          last_beam_longbound = -1.0
+          last_beam_precomp = -1.0
           last_beam_type = 'NONEXISTANT'
 
           f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
@@ -181,9 +184,17 @@ class Rig:
               if b.beamStrength != last_beam_strength:
                   last_beam_strength = b.beamStrength
                   f.write("\t\t\t{\"beamStrength\":" + str(b.beamStrength) + "}\n")
-
-              f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n\n")
-          f.write("\t\t],\n")
+              if b.beamShortBound != last_beam_shortbound:
+                  last_beam_shortbound = b.beamShortBound
+                  f.write("\t\t\t{\"beamShortBound\":" + str(b.beamShortBound) + "}\n")
+              if b.beamLongBound != last_beam_longbound:
+                  last_beam_longbound = b.beamLongBound
+                  f.write("\t\t\t{\"beamLongBound\":" + str(b.beamLongBound) + "}\n")
+              if b.beamPrecompression != last_beam_precomp:
+                  last_beam_precomp = b.beamPrecompression
+                  f.write("\t\t\t{\"beamPrecompression\":" + str(b.beamPrecompression) + "}\n")
+              f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n")
+          f.write("\t\t],\n\n")
       
       if len(self.hydros) > 0:
           last_beam_spring = -1.0
