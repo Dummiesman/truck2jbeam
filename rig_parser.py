@@ -1,5 +1,6 @@
-from rig_common import Node, Beam, Hydro, InternalCamera
+from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode
 import re
+import sys
 
 def ParseNodeName(name):
   """This function converts nodes1 names into nodes2 style names"""
@@ -84,6 +85,59 @@ def ParseNode(components, nodes2 = False):
       node_object.collision = False
       
   return node_object
+
+def ParseRailgroup(components):
+  railgroup_id = "railgroup" + components[0]
+  railgroup_nodes = []
+  
+  for g in range(len(components) - 1):
+    railgroup_nodes.append(ParseNodeName(components[g]))
+    
+  return Rail(railgroup_id, railgroup_nodes)
+    
+
+def ParseSlidenode(components):
+  nodeid = ParseNodeName(components[0])
+  rail_nodes = []
+  
+  spring = 9000000
+  tolerance = 0
+  strength = 1e400
+  railgroup = None
+  
+  for n in range(len(components) - 1):
+    temp_string = components[n+1]
+    if not temp_string[0] == "s" or not temp_string[0] == "b" or not temp_string[0] == "t" or not temp_string[0] == "g" or not temp_string[0] == "r" or not temp_string[0] == "d" or not temp_string[0] == "q" or not temp_string[0] == "c":
+      rail_nodes.append(ParseNodeName(temp_string))
+    elif temp_string[0] == "s":
+      spring = float(temp_string[1:])
+    elif temp_string[0] == "g":
+      railgroup = temp_string[1:]
+    elif temp_string[0] == "b":
+      strength = float(temp_string[1:])
+    elif temp_string[0] == "t":
+      tolerance = float(temp_string[1:])
+  
+  slidenode_object = Slidenode(nodeid, railgroup, spring, strength, tolerance)
+  
+  if len(rail_nodes) == 0 and railgroup is not None:
+    return [slidenode_object, railgroup]
+  elif len(rail_nodes) > 0:
+    railgroup_id = nodeid + "_rail"
+    new_railgroup = Rail(railgroup_id, rail_nodes)
+    slidenode_object.rail = railgroup_id
+    return [slidenode_object, new_railgroup]
+  elif len(rail_nodes) == 0 and railgroup is None:
+    print("Incorrect slidenode!! Aborting")
+    sys.exit(1)
+  
+  
+
+def ParseRefnodes(components):
+  center = ParseNodeName(components[0])
+  back = ParseNodeName(components[1])
+  left = ParseNodeName(components[2])
+  return Refnodes(center,back,left)
 
 
 def ParseHydro(components, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform):

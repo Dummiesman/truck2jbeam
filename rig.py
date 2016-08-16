@@ -15,6 +15,9 @@ class Rig:
       self.beams = []
       self.hydros = []
       self.internal_cameras = []
+      self.rails = []
+      self.slidenodes = []
+      self.refnodes = None
       self.minimass = 50
       self.dry_weight = 10000
       self.load_weight = 10000
@@ -117,6 +120,16 @@ class Rig:
           elif current_section == "globals" and num_components >= 2:
               self.dry_weight = float(line_cmps[0])
               self.load_weight = float(line_cmps[1])
+          elif current_section == "railgroups" and num_components >= 2:
+              self.rails.append(parser.ParseRailgroup(line_cmps))
+          elif current_section == "slidenodes" and num_components >= 2:
+              slidenode, rail = parser.ParseSlidenode(line_cmps)
+              
+              if not isinstance(rail,str):
+                # this is a Railgroup object, add it to self
+                self.rails.append(rail)
+              
+              self.slidenodes.append(slidenode)
           elif current_section == "fixes" and num_components >= 1:
               # set nodes to fixed
               nid = line_cmps[0]
@@ -125,6 +138,8 @@ class Rig:
 
               node = next((x for x in self.nodes if x.name == nid), None)
               node.fixed = True
+          elif current_section == "cameras" and num_components >= 3:
+              self.refnodes = parser.ParseRefnodes(line_cmps)
           elif current_section == "cinecam" and num_components >= 13:
               self.internal_cameras.append(parser.ParseCinecam(line_cmps))
           elif current_section == "flexbodies" and num_components >= 10:
@@ -151,6 +166,12 @@ class Rig:
       f = open(filename, 'w')
       f.write("{\n\t\"truck2jbeam\":{\n\t\t\"slotType\": \"main\",\n\n\t\t\"information\":{\n\t\t\t\"name\": \"truck2jbeam\",\n\t\t\t\"authors\": \"insert your name here\"\n\t\t}\n\n")
       
+      # write refnodes
+      if self.refnodes is not None:
+          f.write("\t\t\"refNodes\":[\n\t\t\t[\"ref:\", \"back:\", \"left:\", \"up:\"],\n")
+          f.write("\t\t\t[\"" + self.refnodes.center + "\", \"" + self.refnodes.back + "\", \"" + self.refnodes.left + "\", \"" + self.refnodes.center + "\"]\n")
+          f.write("\t\t],\n\n")
+
       # write nodes
       if len(self.nodes) > 0:
           last_node_mass = -1.0
@@ -235,6 +256,31 @@ class Rig:
               
           f.write("\t\t],\n\n")
       
+      # write rails (name, nodes are params)
+      if len(self.rails) > 0:
+        f.write("\t\t\"rails\":{\n")
+        for r in self.rails:
+          # start write rail line
+          f.write("\t\t\t\"" + r.name + "\":{\"links:\":[")
+          for n in r.nodes:
+            f.write("\"" + n + "\", ")
+          
+          # seek before last comma, and overwrite it
+          f.seek(f.tell() - 2, 0)
+          
+          # finish writing rail line
+          f.write("], \"looped\":false, \"capped\":true}\n")
+          
+        f.write("\t\t}\n\n")
+      
+      # write slidenodes
+      if len(self.slidenodes) > 0:
+        f.write("\t\t\"slidenodes\":[\n\t\t\t[\"id:\", \"railName\", \"attached\", \"fixToRail\", \"tolerance\", \"spring\", \"strength\", \"capStrength\"],\n")
+        for s in self.slidenodes:
+          # write slidenode line
+          f.write("\t\t\t[\"" + s.node + "\", \"" + s.rail + "\", true, true, " + str(s.tolerance) + ", " + str(s.spring) + ", " + str(s.spring) + ", " + str(s.strength).replace("inf", "100000000") + ", 345435],\n")
+        f.write("\t\t],\n\n")
+        
       # write hydros
       if len(self.hydros) > 0:
           last_beam_spring = -1.0

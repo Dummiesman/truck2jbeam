@@ -135,7 +135,29 @@ class InternalCamera:
         self.fov = 60
         self.type = "rorcam"
 
+
+class Slidenode:
+    def __init__(self, node, rail, spring, strength, tolerance):
+        self.node = node
+        self.rail = rail
+        self.spring = spring
+        self.strength = strength
+        self.tolerance = tolerance
+
         
+class Rail:
+    def __init__(self, name, nodes):
+        self.name = name
+        self.nodes = nodes
+
+        
+class Refnodes:
+    def __init__(self, center, back, left):
+        self.center = center
+        self.back = back
+        self.left = left
+
+
 class RoRFlexbody:
     def __init__(self, mesh, forset_groups, offsetX, offsetY, offsetZ, rotX, rotY, rotZ):
         self.mesh = mesh
