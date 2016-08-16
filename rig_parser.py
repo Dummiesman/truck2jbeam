@@ -49,8 +49,8 @@ def ParseNode(components, nodes2 = False):
   if not nodes2:
     nid = "node" + nid
     
-  nx = float(components[1]) * -1
-  ny = float(components[3])
+  nx = float(components[3]) 
+  ny = float(components[1])
   nz = float(components[2])
   
   flags = ''

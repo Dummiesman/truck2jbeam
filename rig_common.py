@@ -76,7 +76,8 @@ truck_inline_sections = ["set_skeleton_settings",
                          "section",
                          "sectionconfig",
                          "importcommands",
-                         "forwardcommands"]
+                         "forwardcommands",
+                         "forset"]
                          
 # storage classes
 class Node:

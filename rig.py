@@ -39,18 +39,22 @@ class Rig:
           if b.type != 'VIRTUAL':
               node1 = next((x for x in self.nodes if x.name == b.id1), None)
               node2 = next((x for x in self.nodes if x.name == b.id2), None)
-              beam_length = VectorDistance(node1.x, node1.y, node1.z, node2.x, node2.y, node2.z)
-              avg_lin_dens += beam_length
+              
+              if node1 is not None and node2 is not None:
+                beam_length = VectorDistance(node1.x, node1.y, node1.z, node2.x, node2.y, node2.z)
+                avg_lin_dens += beam_length
 
       for b in self.beams:
           if b.type != 'VIRTUAL':
               node1 = next((x for x in self.nodes if x.name == b.id1), None)
               node2 = next((x for x in self.nodes if x.name == b.id2), None)
-              beam_length = VectorDistance(node1.x, node1.y, node1.z, node2.x, node2.y, node2.z)
-              half_mass = beam_length * self.dry_weight / avg_lin_dens / 2
-
-              node1.mass += half_mass
-              node2.mass += half_mass
+              
+              if node1 is not None and node2 is not None:
+                beam_length = VectorDistance(node1.x, node1.y, node1.z, node2.x, node2.y, node2.z)
+                half_mass = beam_length * self.dry_weight / avg_lin_dens / 2
+                
+                node1.mass += half_mass
+                node2.mass += half_mass
 
       for n in self.nodes:
           if n.mass < self.minimass:
