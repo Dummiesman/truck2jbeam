@@ -1,5 +1,14 @@
-from rig_common import Node, Beam, Hydro
+from rig_common import Node, Beam, Hydro, InternalCamera
+import re
 
+def ParseNodeName(name):
+  """This function converts nodes1 names into nodes2 style names"""
+  if name.isdigit():
+      return "node" + name
+  else:
+    return name
+
+    
 def PrepareLine(line):
   """Component-ize a line"""
   if line[0] == ";" or len(line) == 0:
@@ -57,11 +66,18 @@ def ParseNode(components, nodes2 = False):
   if len(components) >= 5:
       flags = components[4]
   
+  
+  
+  
+  
   node_object = Node(nid, nx, ny, nz)
   
   # flags parsing
   if 'l' in flags:
       node_object.load_bearer = True
+      num_in_flags = re.findall(r"[-+]?\d*\.\d+|\d+", flags)
+      if len(num_in_flags) > 0:
+        node_object.override_mass = float(num_in_flags[0])
   if 'h' in flags:
       node_object.coupler = True
   if 'c' in flags:
@@ -71,28 +87,16 @@ def ParseNode(components, nodes2 = False):
 
 
 def ParseHydro(components, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform):
-  nid1 = components[0]
-  nid2 = components[1]
-  
-  #nodes1? convert to more BeamNG style name
-  if nid1.isdigit():
-      nid1 = "node" + nid1
-  if nid2.isdigit():
-      nid2 = "node" + nid2
+  nid1 = ParseNodeName(components[0])
+  nid2 = ParseNodeName(components[1])
       
   factor = float(components[2]) * -1
   
   return Hydro(nid1, nid2, factor, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform)
 
 def ParseShock(components, last_beamstrength, last_beamdeform):
-  nid1 = components[0]
-  nid2 = components[1]
-  
-  #nodes1? convert to more BeamNG style name
-  if nid1.isdigit():
-      nid1 = "node" + nid1
-  if nid2.isdigit():
-      nid2 = "node" + nid2
+  nid1 = ParseNodeName(components[0])
+  nid2 = ParseNodeName(components[1])
       
   spring = float(components[2])
   damp = float(components[3])
@@ -111,14 +115,8 @@ def ParseShock(components, last_beamstrength, last_beamdeform):
 
 
 def ParseBeam(components, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform):
-  nid1 = components[0]
-  nid2 = components[1]
-  
-  #nodes1? convert to more BeamNG style name
-  if nid1.isdigit():
-      nid1 = "node" + nid1
-  if nid2.isdigit():
-      nid2 = "node" + nid2
+  nid1 = ParseNodeName(components[0])
+  nid2 = ParseNodeName(components[1])
 
   flags = ''
   if len(components) >= 3:
@@ -135,6 +133,24 @@ def ParseBeam(components, last_beamspring, last_beamdamp, last_beamstrength, las
   return beam_obj
 
   
+def ParseCinecam(components):
+  xpos = float(components[2])
+  ypos = float(components[0])
+  zpos = float(components[1])
+  
+  n1 = ParseNodeName(components[3])
+  n2 = ParseNodeName(components[4])
+  n3 = ParseNodeName(components[5])
+  n4 = ParseNodeName(components[6])
+  n5 = ParseNodeName(components[7])
+  n6 = ParseNodeName(components[8])
+  
+  spring = float(components[11])
+  damp = float(components[12])
+  
+  return InternalCamera(xpos, ypos, zpos, n1, n2, n3, n4, n5, n6, spring, damp)
+  
+
 def ParseSetBeamDefaults(components):
   new_spring = float(components[1])
   new_damp = float(components[2])

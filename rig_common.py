@@ -120,8 +120,7 @@ class Hydro:
 
         
 class InternalCamera:
-    def __init__(self, name, xpos, ypos, zpos, id1, id2, id3, id4, id5, id6, spring, damp):
-        self.name = name
+    def __init__(self, xpos, ypos, zpos, id1, id2, id3, id4, id5, id6, spring, damp):
         self.x = xpos
         self.y = ypos
         self.z = zpos
@@ -131,6 +130,10 @@ class InternalCamera:
         self.id4 = id4
         self.id5 = id5
         self.id6 = id6
+        self.beamSpring = spring
+        self.beamDamp = damp
+        self.fov = 60
+        self.type = "rorcam"
 
         
 class RoRFlexbody:

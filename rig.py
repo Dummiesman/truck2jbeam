@@ -14,6 +14,7 @@ class Rig:
       self.nodes = []
       self.beams = []
       self.hydros = []
+      self.internal_cameras = []
       self.minimass = 50
       self.dry_weight = 10000
       self.load_weight = 10000
@@ -33,6 +34,8 @@ class Rig:
               n.mass = 0
           elif n.override_mass == 0:
               n.mass = self.load_weight / numloadnodes
+          elif n.override_mass > 0:
+              n.mass = n.override_mass
 
       avg_lin_dens = 0.0
       for b in self.beams:
@@ -119,7 +122,8 @@ class Rig:
 
               node = next((x for x in self.nodes if x.name == nid), None)
               node.fixed = True
-
+          elif current_section == "cinecam" and num_components >= 13:
+              self.internal_cameras.append(parser.ParseCinecam(line_cmps))
           elif current_section == "flexbodies" and num_components >= 10:
               # convert flexbodies (WiP!)
               relative_x_offset = float(line_cmps[3])
@@ -140,10 +144,11 @@ class Rig:
       # sort beams by something so the jbeam doesn't look like a total mess
       self.beams.sort(key=lambda x: x.beamSpring, reverse=True)
       
-      # open file and write
+      # open file and write it
       f = open(filename, 'w')
       f.write("{\n\t\"truck2jbeam\":{\n\t\t\"slotType\": \"main\",\n\n\t\t\"information\":{\n\t\t\t\"name\": \"truck2jbeam\",\n\t\t\t\"authors\": \"insert your name here\"\n\t\t}\n\n")
-
+      
+      # write nodes
       if len(self.nodes) > 0:
           last_node_mass = -1.0
           
@@ -152,6 +157,8 @@ class Rig:
               if n.mass != last_node_mass:
                   f.write("\t\t\t{\"nodeWeight\": " + str(n.mass) + "},\n")
                   last_node_mass = n.mass
+              
+              # write node line
               f.write("\t\t\t[\"" + n.name + "\", " + str(n.x) + ", " + str(n.y) + ", " + str(n.z))
 
               # write inline stuff
@@ -160,7 +167,29 @@ class Rig:
               
               f.write("],\n")
           f.write("\t\t],\n\n")
-
+      
+      # write cameras
+      if len(self.internal_cameras) > 0:
+          last_beam_spring = -1.0
+          last_beam_damp = -1.0
+          
+          #     "camerasInternal":[
+          # 
+          f.write("\t\t\"camerasInternal\":[\n\t\t\t[\"type\", \"x\", \"y\", \"z\", \"fov\", \"id1:\", \"id2:\", \"id3:\", \"id4:\", \"id5:\", \"id6:\"],\n\t\t\t{\"nodeWeight\": 20},\n")
+          for c in self.internal_cameras:
+              if c.beamSpring != last_beam_spring:
+                  last_beam_spring = c.beamSpring
+                  f.write("\t\t\t{\"beamSpring\":" + str(c.beamSpring) + "}\n")
+              if c.beamDamp != last_beam_damp:
+                  last_beam_damp = c.beamDamp
+                  f.write("\t\t\t{\"beamDamp\":" + str(c.beamDamp) + "}\n")
+                  
+              # write camera line
+              f.write("\t\t\t[\"" + c.type + "\", " + str(c.x) + ", " + str(c.y) + ", " + str(c.z) + ", " + str(c.fov) + ", \"" + c.id1 + "\", \"" + c.id2 + "\", \"" + c.id3 + "\", \"" + c.id4 + "\", \"" + c.id5 + "\", \"" + c.id6 + "\"],\n")
+          
+          f.write("\t\t],\n\n")
+          
+      # write beams
       if len(self.beams) > 0:
           last_beam_spring = -1.0
           last_beam_damp = -1.0
@@ -197,9 +226,13 @@ class Rig:
               if b.beamPrecompression != last_beam_precomp:
                   last_beam_precomp = b.beamPrecompression
                   f.write("\t\t\t{\"beamPrecompression\":" + str(b.beamPrecompression) + "}\n")
+              
+              # write beam line
               f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n")
+              
           f.write("\t\t],\n\n")
       
+      # write hydros
       if len(self.hydros) > 0:
           last_beam_spring = -1.0
           last_beam_damp = -1.0
@@ -220,8 +253,10 @@ class Rig:
               if h.beamStrength != last_beam_strength:
                   last_beam_strength = h.beamStrength
                   f.write("\t\t\t{\"beamStrength\":" + str(h.beamStrength) + "}\n")
-
+              
+              # write hydro line
               f.write("\t\t\t[\"" + h.id1 + "\", \"" + h.id2 + "\", {\"inputSource\": \"steering\", \"inputFactor\": " + str(h.factor) + "}],\n")
+              
           f.write("\t\t],\n")
       
       
