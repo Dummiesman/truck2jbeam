@@ -17,6 +17,7 @@ class Rig:
       self.internal_cameras = []
       self.rails = []
       self.slidenodes = []
+      self.torquecurve = []
       self.refnodes = None
       self.minimass = 50
       self.dry_weight = 10000
@@ -155,6 +156,8 @@ class Rig:
               self.minimass = float(line_cmps[0])
           elif current_section == "shocks" and num_components >= 7:
               self.beams.append(parser.ParseShock(line_cmps, last_beamstrength, last_beamdeform))
+          elif current_section == "shocks2" and num_components >= 13:
+              self.beams.append(parser.ParseShock2(line_cmps, last_beamstrength, last_beamdeform))
               
       # end parse of .truck
       
@@ -223,9 +226,13 @@ class Rig:
           last_beam_longbound = -1.0
           last_beam_precomp = -1.0
           last_beam_type = 'NONEXISTANT'
-
+          last_beam_damprebound = False
+          
           f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
           for b in self.beams:
+              if b.beamDampRebound != last_beam_damprebound:
+                  last_beam_damprebound = b.beamDampRebound
+                  f.write("\t\t\t{\"beamDampRebound\":" + str(b.beamDampRebound).lower() + "},\n")
               if b.type != last_beam_type:
                   last_beam_type = b.type
                   f.write("\t\t\t{\"beamType\":\"|" + b.type + "\"},\n")
@@ -278,7 +285,7 @@ class Rig:
         f.write("\t\t\"slidenodes\":[\n\t\t\t[\"id:\", \"railName\", \"attached\", \"fixToRail\", \"tolerance\", \"spring\", \"strength\", \"capStrength\"],\n")
         for s in self.slidenodes:
           # write slidenode line
-          f.write("\t\t\t[\"" + s.node + "\", \"" + s.rail + "\", true, true, " + str(s.tolerance) + ", " + str(s.spring) + ", " + str(s.spring) + ", " + str(s.strength).replace("inf", "100000000") + ", 345435],\n")
+          f.write("\t\t\t[\"" + s.node + "\", \"" + s.rail + "\", true, true, " + str(s.tolerance) + ", " + str(s.spring) + ", " + str(s.strength).replace("inf", "100000000") + ", 345435],\n")
         f.write("\t\t],\n\n")
         
       # write hydros

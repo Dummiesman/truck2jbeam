@@ -36,6 +36,7 @@ truck_sections = ["globals",
                   "cruisecontrol",
                   "axles",
                   "shocks",
+                  "shocks2",
                   "flares",
                   "flares2",
                   "materialflarebindings",
@@ -105,6 +106,7 @@ class Beam:
         self.beamShortBound = 1.0
         self.beamLongBound = 1.0
         self.beamPrecompression = 1.0
+        self.beamDampRebound = False
         self.type = 'NORMAL'
 
         

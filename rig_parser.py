@@ -42,6 +42,8 @@ def PrepareLine(line):
   
   if rejoined_lst.endswith(","):
       rejoined_lst = rejoined_lst[:-1]
+  if rejoined_lst.startswith(","):
+      rejoined_lst = rejoined_lst[1:]
 
   rejoined_lst = rejoined_lst.replace(" ","")
   components = rejoined_lst.split(',')
@@ -147,6 +149,31 @@ def ParseHydro(components, last_beamspring, last_beamdamp, last_beamstrength, la
   factor = float(components[2]) * -1
   
   return Hydro(nid1, nid2, factor, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform)
+
+
+def ParseShock2(components, last_beamstrength, last_beamdeform):
+  print("shock2")
+  print(components)
+  nid1 = ParseNodeName(components[0])
+  nid2 = ParseNodeName(components[1])
+      
+  spring = float(components[2])
+  damp = float(components[3])
+  shortbound = float(components[10])
+  longbound = float(components[11])
+  precomp = float(components[12])
+  dampout = float(components[7])
+  
+  # create beam
+  beam_obj = Beam(nid1, nid2, spring, damp, last_beamstrength, last_beamdeform)
+  beam_obj.type = 'BOUNDED'
+  beam_obj.beamShortBound = shortbound
+  beam_obj.beamLongBound = longbound
+  beam_obj.beamPrecompression = precomp
+  beam_obj.beamDampRebound = dampout
+  
+  return beam_obj
+  
 
 def ParseShock(components, last_beamstrength, last_beamdeform):
   nid1 = ParseNodeName(components[0])
