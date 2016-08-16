@@ -96,6 +96,9 @@ class Rig:
               if section_name == "set_beam_defaults" and num_components >= 5:
                   # set public stuff
                   last_beamspring, last_beamdamp, last_beamdeform, last_beamstrength = parser.ParseSetBeamDefaults(line_cmps)
+              elif section_name == "end":
+                  # stop parsing!
+                  break
                   
               continue
               
@@ -105,7 +108,7 @@ class Rig:
               continue
 
           #parse sections
-          if current_section == "nodes" and num_components >= 4:
+          if (current_section == "nodes" or current_section == "nodes2") and num_components >= 4:
               self.nodes.append(parser.ParseNode(line_cmps))
           elif current_section == "beams" and num_components >= 2:
               self.beams.append(parser.ParseBeam(line_cmps, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform))
