@@ -13,6 +13,7 @@ class Rig:
     def __init__(self):
       self.nodes = []
       self.beams = []
+      self.hydros = []
       self.minimass = 50
       self.dry_weight = 10000
       self.load_weight = 10000
@@ -101,6 +102,8 @@ class Rig:
               self.nodes.append(parser.ParseNode(line_cmps))
           elif current_section == "beams" and num_components >= 2:
               self.beams.append(parser.ParseBeam(line_cmps, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform))
+          elif current_section == "hydros" and num_components >= 3:
+              self.hydros.append(parser.ParseHydro(line_cmps, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform))
           elif current_section == "globals" and num_components >= 2:
               self.dry_weight = float(line_cmps[0])
               self.load_weight = float(line_cmps[1])
@@ -122,9 +125,11 @@ class Rig:
               yrot = float(line_cmps[7])
               zrot = float(line_cmps[8])
               mesh_name = line_cmps[9]
-              
           elif current_section == "minimass" and num_components >= 1:
               self.minimass = float(line_cmps[0])
+          elif current_section == "shocks" and num_components >= 7:
+              self.beams.append(parser.ParseShock(line_cmps, last_beamstrength, last_beamdeform))
+              
       # end parse of .truck
       
     def to_jbeam(self, filename):
@@ -177,8 +182,33 @@ class Rig:
                   last_beam_strength = b.beamStrength
                   f.write("\t\t\t{\"beamStrength\":" + str(b.beamStrength) + "}\n")
 
-              f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n")
+              f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n\n")
           f.write("\t\t],\n")
+      
+      if len(self.hydros) > 0:
+          last_beam_spring = -1.0
+          last_beam_damp = -1.0
+          last_beam_deform = -1.0
+          last_beam_strength = -1.0
+
+          f.write("\t\t\"hydros\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
+          for h in self.hydros:
+              if h.beamSpring != last_beam_spring:
+                  last_beam_spring = h.beamSpring
+                  f.write("\t\t\t{\"beamSpring\":" + str(h.beamSpring) + "}\n")
+              if h.beamDamp != last_beam_damp:
+                  last_beam_damp = h.beamDamp
+                  f.write("\t\t\t{\"beamDamp\":" + str(h.beamDamp) + "}\n")
+              if h.beamDeform != last_beam_deform:
+                  last_beam_deform = h.beamDeform
+                  f.write("\t\t\t{\"beamDeform\":" + str(h.beamDeform) + "}\n")
+              if h.beamStrength != last_beam_strength:
+                  last_beam_strength = h.beamStrength
+                  f.write("\t\t\t{\"beamStrength\":" + str(h.beamStrength) + "}\n")
+
+              f.write("\t\t\t[\"" + h.id1 + "\", \"" + h.id2 + "\", {\"inputSource\": \"steering\", \"inputFactor\": " + str(h.factor) + "}],\n")
+          f.write("\t\t],\n")
+      
       
       f.write("\t}\n}")
       f.close()

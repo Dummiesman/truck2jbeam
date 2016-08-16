@@ -35,6 +35,7 @@ truck_sections = ["globals",
                   "torquecurve",
                   "cruisecontrol",
                   "axles",
+                  "shocks",
                   "flares",
                   "flares2",
                   "materialflarebindings",
@@ -105,6 +106,18 @@ class Beam:
         self.beamPrecompression = 1.0
         self.type = 'NORMAL'
 
+        
+class Hydro:
+    def __init__(self, nid1, nid2, factor, spring, damp, strength, deform):
+        self.id1 = nid1
+        self.id2 = nid2
+        self.factor = factor
+        self.beamSpring = spring
+        self.beamDamp = damp
+        self.beamStrength = strength
+        self.beamDeform = deform
+
+        
 class InternalCamera:
     def __init__(self, name, xpos, ypos, zpos, id1, id2, id3, id4, id5, id6, spring, damp):
         self.name = name
@@ -118,6 +131,7 @@ class InternalCamera:
         self.id5 = id5
         self.id6 = id6
 
+        
 class RoRFlexbody:
     def __init__(self, mesh, forset_groups, offsetX, offsetY, offsetZ, rotX, rotY, rotZ):
         self.mesh = mesh
@@ -129,6 +143,7 @@ class RoRFlexbody:
         self.rotY = rotY
         self.rotZ = rotZ
 
+        
 class JBeamInformation:
     def __init__(self):
         self.name = "Untitled"

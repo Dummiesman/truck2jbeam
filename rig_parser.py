@@ -1,4 +1,4 @@
-from rig_common import Node, Beam
+from rig_common import Node, Beam, Hydro
 
 def PrepareLine(line):
   """Component-ize a line"""
@@ -68,7 +68,47 @@ def ParseNode(components, nodes2 = False):
       node_object.collision = False
       
   return node_object
+
+
+def ParseHydro(components, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform):
+  nid1 = components[0]
+  nid2 = components[1]
   
+  #nodes1? convert to more BeamNG style name
+  if nid1.isdigit():
+      nid1 = "node" + nid1
+  if nid2.isdigit():
+      nid2 = "node" + nid2
+      
+  factor = float(components[2]) * -1
+  
+  return Hydro(nid1, nid2, factor, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform)
+
+def ParseShock(components, last_beamstrength, last_beamdeform):
+  nid1 = components[0]
+  nid2 = components[1]
+  
+  #nodes1? convert to more BeamNG style name
+  if nid1.isdigit():
+      nid1 = "node" + nid1
+  if nid2.isdigit():
+      nid2 = "node" + nid2
+      
+  spring = float(components[2])
+  damp = float(components[3])
+  shortbound = float(components[4])
+  longbound = float(components[5])
+  precomp = float(components[6])
+  
+  # create beam
+  beam_obj = Beam(nid1, nid2, spring, damp, last_beamstrength, last_beamdeform)
+  beam_obj.type = 'BOUNDED'
+  beam_obj.beamShortBound = shortbound
+  beam_obj.beamLongBound = longbound
+  beam_obj.beamPrecompression = precomp
+  
+  return beam_obj
+
 
 def ParseBeam(components, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform):
   nid1 = components[0]
@@ -93,6 +133,7 @@ def ParseBeam(components, last_beamspring, last_beamdamp, last_beamstrength, las
       beam_obj.beamLongBound = 2.0
       
   return beam_obj
+
   
 def ParseSetBeamDefaults(components):
   new_spring = float(components[1])
