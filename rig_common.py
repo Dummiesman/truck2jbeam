@@ -98,7 +98,8 @@ class Node:
         self.coupler = False
         self.collision = True
         self.selfCollision = False
-
+        self.frictionCoef = 1.0
+        
 class Beam:
     def __init__(self, nid1, nid2, spring, damp, strength, deform):
         self.id1 = nid1

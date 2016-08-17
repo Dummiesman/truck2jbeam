@@ -95,6 +95,9 @@ class Rig:
       
       cur_detach_group = 0
       
+      last_loadweight = 0.0
+      last_friction = 1.0
+      
       # parse .truck
       current_section = None
       for line in trucklines:
@@ -116,6 +119,10 @@ class Rig:
                   last_beamspring, last_beamdamp, last_beamdeform, last_beamstrength = parser.ParseSetBeamDefaults(line_cmps)
               elif section_name == "set_beam_defaults_scale" and num_components >= 5:
                   springscale, dampscale, deformscale, strengthscale = parser.ParseSetBeamDefaults(line_cmps)
+              elif section_name == "set_node_defaults" and num_components >= 5:
+                  defaults = parser.ParseSetNodeDefaults(line_cmps)
+                  last_loadweight = defaults[0]
+                  last_friction = defaults[1]
               elif section_name == "detacher_group":
                   cur_detach_group = int(line_cmps[1])
               elif section_name == "end":
@@ -131,7 +138,14 @@ class Rig:
 
           #parse sections
           if (current_section == "nodes" or current_section == "nodes2") and num_components >= 4:
-              self.nodes.append(parser.ParseNode(line_cmps))
+              node_object = parser.ParseNode(line_cmps)
+                            
+              # apply set_node_defaults
+              node_object.frictionCoef = last_friction
+              if last_loadweight > 0:
+                node_object.override_mass = last_loadweight
+              
+              self.nodes.append(node_object)
           elif current_section == "beams" and num_components >= 2:
               beam_object = parser.ParseBeam(line_cmps, last_beamspring * springscale, last_beamdamp * dampscale, last_beamstrength * strengthscale, last_beamdeform * deformscale)
               parser.SetBeamBreakgroup(beam_object, cur_detach_group)
@@ -197,7 +211,13 @@ class Rig:
               self.torquecurve = curves.get_curve(line_cmps[0])
           elif current_section == "wheels" and num_components >= 12:
               self.wheels.append(parser.ParseWheel(line_cmps))
-       
+          elif current_section == "contacters" and num_components >= 1:
+              # set node as contacter
+              contacter_node = parser.ParseNodeName(line_cmps[0])
+              contacter_node_obj = next((x for x in self.nodes if x.name == contacter_node), None)
+              if contacter_node_obj is not None:
+                  contacter_node_obj.selfCollision = True
+                  
       # final checks
       if self.torquecurve is None and self.engine is not None:
         self.torquecurve = curves.get_curve("default")
@@ -274,19 +294,26 @@ class Rig:
       # write nodes
       if len(self.nodes) > 0:
           last_node_mass = -1.0
-          
+          last_node_friction = 1.0
+          last_selfcollision = False
           f.write("\t\t\"nodes\":[\n\t\t\t[\"id\", \"posX\", \"posY\", \"posZ\"],\n")
           for n in self.nodes:
               if n.mass != last_node_mass:
                   f.write("\t\t\t{\"nodeWeight\": " + str(n.mass) + "},\n")
                   last_node_mass = n.mass
-              
+              if n.frictionCoef != last_node_friction:
+                  f.write("\t\t\t{\"frictionCoef\": " + str(n.frictionCoef) + "},\n")
+                  last_node_friction = n.frictionCoef
+              if n.selfCollision != last_selfcollision:
+                  f.write("\t\t\t{\"selfCollision\": " + str(n.selfCollision).lower() + "},\n")
+                  last_selfcollision = n.selfCollision
+                  
               # write node line
               f.write("\t\t\t[\"" + n.name + "\", " + str(n.x) + ", " + str(n.y) + ", " + str(n.z))
 
               # write inline stuff
               if n.coupler:
-                  f.write(", {\"tag\":\"fifthwheel\"}")
+                  f.write(", {\"couplerTag\":\"fifthwheel\"}")
               
               f.write("],\n")
           f.write("\t\t],\n\n")
@@ -324,6 +351,7 @@ class Rig:
           last_beam_type = 'NONEXISTANT'
           last_beam_damprebound = False
           last_breakgroup = ''
+
           f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
           for b in self.beams:
               # write vars if changed

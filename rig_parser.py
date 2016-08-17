@@ -282,8 +282,29 @@ def ParseWheel(components):
   spring = float(components[10])
   damp = float(components[11])
   
+  # fix negative arm node ids
+  if armnode[0] == "-":
+    armnode = ParseNodeName(armnode[1:])
+    
   return WheelTypeA(radius, width, numrays, nid1, nid2, snode, braketype, drivetype, armnode, mass, spring, damp)
+
+
+def ParseSetNodeDefaults(components):
+  new_loadweight = float(components[1])
+  new_friction = float(components[2])
+  new_volume = float(components[3])
+  new_surface = float(components[4])
   
+  # defaults
+  new_loadweight = 0.0 if new_loadweight < 0 else new_loadweight
+  new_friction = 1.0 if new_friction < 0 else new_friction
+  new_volume = 1.0 if new_volume < 0 else new_volume
+  new_surface = 1.0 if new_surface < 0 else new_surface
+  
+  return [new_loadweight, new_friction, new_volume, new_surface]
+  
+
+
 def ParseSetBeamDefaults(components):
   new_spring = float(components[1])
   new_damp = float(components[2])
@@ -291,17 +312,14 @@ def ParseSetBeamDefaults(components):
   new_break = float(components[4])
   
   # defaults
-  if new_spring < 0:
-      new_spring = 9000000
-  if new_damp < 0:
-      new_damp = 12000
-  if new_deform < 0:
-      new_deform = 400000
-  if new_break < 0:
-      new_break = 100000
-   
+  new_spring = 9000000 if new_spring < 0 else new_spring
+  new_damp = 12000 if new_damp < 0 else new_damp
+  new_deform = 400000 if new_deform < 0 else new_deform
+  new_break = 100000 if new_break < 0 else new_break
+
   return [new_spring, new_damp, new_deform, new_break]
-      
+
+  
 def SetBeamBreakgroup(beam, id):
   if id == 0:
     return
