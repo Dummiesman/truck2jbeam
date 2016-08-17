@@ -110,6 +110,29 @@ class Beam:
         self.type = 'NORMAL'
 
         
+class Engine:
+    def __init__(self, min_rpm, max_rpm, torque, differential, gears):
+        self.min_rpm = min_rpm
+        self.max_rpm = max_rpm
+        self.torque = torque
+        self.differential = differential
+        self.gears = gears
+
+
+class Engoption:
+    def __init__(self, inertia, type, clutch_force, shift_time, clutch_time, post_shift_time, stall_rpm, idle_rpm, max_idle_mixture, min_idle_mixture):
+        self.inertia = inertia
+        self.type = type
+        self.clutch_force = clutch_force
+        self.shift_time = shift_time
+        self.clutch_time = clutch_time
+        self.post_shift_time = post_shift_time
+        self.stall_rpm = stall_rpm
+        self.idle_rpm = idle_rpm
+        self.max_idle_mixture = max_idle_mixture
+        self.min_idle_mixture = min_idle_mixture
+
+
 class Hydro:
     def __init__(self, nid1, nid2, factor, spring, damp, strength, deform):
         self.id1 = nid1

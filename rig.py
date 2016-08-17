@@ -1,5 +1,6 @@
 from rig_common import Node, Beam, truck_sections, truck_inline_sections
 import rig_parser as parser
+import rig_torquecurves as curves
 
 # TODO : Move this somewhere else?
 def VectorDistance(x1, y1, z1, x2, y2, z2):
@@ -17,7 +18,9 @@ class Rig:
       self.internal_cameras = []
       self.rails = []
       self.slidenodes = []
-      self.torquecurve = []
+      self.torquecurve = None
+      self.engine = None
+      self.engoption = None
       self.refnodes = None
       self.minimass = 50
       self.dry_weight = 10000
@@ -132,7 +135,7 @@ class Rig:
               
               self.slidenodes.append(slidenode)
           elif current_section == "fixes" and num_components >= 1:
-              # set nodes to fixed
+              # set node(s) to fixed
               nid = line_cmps[0]
               if nid.isdigit():
                   nid = "node" + nid
@@ -158,7 +161,24 @@ class Rig:
               self.beams.append(parser.ParseShock(line_cmps, last_beamstrength, last_beamdeform))
           elif current_section == "shocks2" and num_components >= 13:
               self.beams.append(parser.ParseShock2(line_cmps, last_beamstrength, last_beamdeform))
-              
+          elif current_section == "engine" and num_components >= 7 and self.engine is None:
+              self.engine = parser.ParseEngine(line_cmps)
+          elif current_section == "engoption" and num_components >= 2 and self.engine is not None:
+              self.engoption = parser.ParseEngoption(line_cmps)
+          elif current_section == "torquecurve" and num_components >= 2 and self.engine is not None:
+              # custom torquecurve model
+              if self.torquecurve is None:
+                self.torquecurve = []
+                
+              self.torquecurve.append([float(line_cmps[0]), float(line_cmps[1])])
+          elif current_section == "torquecurve" and num_components == 1 and self.engine is not None and self.torquecurve is None:
+              # predefined curve
+              self.torquecurve = curves.get_curve(line_cmps[0])
+       
+      # final checks
+      if self.torquecurve is None and self.engine is not None:
+        self.torquecurve = curves.get_curve("default")
+        
       # end parse of .truck
       
     def to_jbeam(self, filename):
@@ -174,7 +194,60 @@ class Rig:
           f.write("\t\t\"refNodes\":[\n\t\t\t[\"ref:\", \"back:\", \"left:\", \"up:\"],\n")
           f.write("\t\t\t[\"" + self.refnodes.center + "\", \"" + self.refnodes.back + "\", \"" + self.refnodes.left + "\", \"" + self.refnodes.center + "\"]\n")
           f.write("\t\t],\n\n")
-
+      
+      # write torquecurve
+      if self.torquecurve is not None:
+        f.write("\t\t\"enginetorque\":[\n\t\t\t[\"rpm\", \"torque\"],\n")
+        
+        # write curve, and multiply torque
+        for t in self.torquecurve:
+          f.write("\t\t\t[" + str(t[0]) + ", " + str(t[1] * self.engine.torque) + "],\n")
+          
+        f.write("\t\t],\n\n")
+        
+      # write engine
+      if self.engine is not None:
+          f.write("\t\t\"engine\":{\n")
+          
+          # idle/max RPM
+          if self.engoption is None:
+            f.write("\t\t\t\"idleRPM\":800,\n")
+          else:
+            f.write("\t\t\t\"idleRPM\":" + str(self.engoption.idle_rpm) + ",\n")
+            
+          f.write("\t\t\t\"maxRPM\":" + str(self.engine.max_rpm * 1.25) + ",\n")
+          
+          # shift RPMs
+          f.write("\t\t\t\"shiftDownRPM\":" + str(self.engine.min_rpm) + ",\n")
+          f.write("\t\t\t\"shiftUpRPM\":" + str(self.engine.max_rpm) + ",\n")
+          
+          # diff
+          f.write("\t\t\t\"differential\":" + str(self.engine.differential) + ",\n")
+          
+          # inertia
+          if self.engoption is None:
+            f.write("\t\t\t\"inertia\":10,\n")
+          else:
+            f.write("\t\t\t\"inertia\":" + str(self.engoption.inertia) + ",\n")
+            
+          # ratios
+          f.write("\t\t\t\"gears\":[")
+          for g in self.engine.gears:
+            f.write(str(g) + ", ")
+          
+          # seek before ratios last comma/spce
+          f.seek(f.tell() - 2)
+          f.write("],\n")
+          
+          # rest of engoption stuff
+          if self.engoption is not None:
+            f.write("\t\t\t\"clutchTorque\":" + str(self.engoption.clutch_force) + ",\n")
+            f.write("\t\t\t\"clutchDuration\":" + str(self.engoption.clutch_time) + ",\n")
+          
+          f.write("\t\t}\n\n")
+          
+            
+            
       # write nodes
       if len(self.nodes) > 0:
           last_node_mass = -1.0

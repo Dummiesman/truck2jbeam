@@ -1,4 +1,4 @@
-from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode
+from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption
 import re
 import sys
 
@@ -152,8 +152,6 @@ def ParseHydro(components, last_beamspring, last_beamdamp, last_beamstrength, la
 
 
 def ParseShock2(components, last_beamstrength, last_beamdeform):
-  print("shock2")
-  print(components)
   nid1 = ParseNodeName(components[0])
   nid2 = ParseNodeName(components[1])
       
@@ -195,6 +193,48 @@ def ParseShock(components, last_beamstrength, last_beamdeform):
   return beam_obj
 
 
+def ParseEngine(components):
+  min_rpm = float(components[0])
+  max_rpm = float(components[1])
+  torque = float(components[2])
+  differential = float(components[3])
+  gears = []
+  
+  # read in gear ratios
+  for g in range(len(components) - 4):
+    ratio = float(components[g+4])
+    if ratio != -1:
+      gears.append(ratio)
+  
+  # fix reverse one
+  gears[0] *= -1
+  
+  return Engine(min_rpm, max_rpm, torque, differential, gears)
+
+  
+def ParseEngoption(components):
+  num_components = len(components)
+
+  inertia = float(components[0])
+  type = components[1]
+  
+  # get clutch force, default half for cars in RoR
+  clutch_force = float(components[2]) if num_components >= 3 else 10000
+  if clutch_force == 10000 and num_components < 3:
+    if type == "c":
+      clutch_force /= 2
+  
+  # parse other stuff
+  shift_time = float(components[3]) if num_components >= 4 else 0.2
+  clutch_time = float(components[4]) if num_components >= 5 else 0.5
+  post_shift_time = float(components[5]) if num_components >= 6 else 0.2
+  stall_rpm = float(components[6]) if num_components >= 7 else 300
+  idle_rpm = float(components[7]) if num_components >= 8 else 800
+  max_idle_mixture = float(components[8]) if num_components >= 9 else 0.2
+  min_idle_mixture = float(components[9]) if num_components >= 10 else 0.0
+  
+  return Engoption(inertia, type, clutch_force, shift_time, clutch_time, post_shift_time, stall_rpm, idle_rpm, max_idle_mixture, min_idle_mixture)
+  
 def ParseBeam(components, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform):
   nid1 = ParseNodeName(components[0])
   nid2 = ParseNodeName(components[1])
