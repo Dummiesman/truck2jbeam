@@ -18,6 +18,7 @@ class Rig:
       self.internal_cameras = []
       self.rails = []
       self.slidenodes = []
+      self.wheels = []
       self.torquecurve = None
       self.engine = None
       self.engoption = None
@@ -194,6 +195,8 @@ class Rig:
           elif current_section == "torquecurve" and num_components == 1 and self.engine is not None and self.torquecurve is None:
               # predefined curve
               self.torquecurve = curves.get_curve(line_cmps[0])
+          elif current_section == "wheels" and num_components >= 12:
+              self.wheels.append(parser.ParseWheel(line_cmps))
        
       # final checks
       if self.torquecurve is None and self.engine is not None:
@@ -323,6 +326,7 @@ class Rig:
           last_breakgroup = ''
           f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
           for b in self.beams:
+              # write vars if changed
               if b.beamDampRebound != last_beam_damprebound:
                   last_beam_damprebound = b.beamDampRebound
                   f.write("\t\t\t{\"beamDampRebound\":" + str(b.beamDampRebound).lower() + "},\n")
@@ -383,6 +387,56 @@ class Rig:
           f.write("\t\t\t[\"" + s.node + "\", \"" + s.rail + "\", true, true, " + str(s.tolerance) + ", " + str(s.spring) + ", " + str(s.strength).replace("inf", "100000000") + ", 345435],\n")
         f.write("\t\t],\n\n")
         
+      # write wheels
+      if len(self.wheels) > 0:
+          last_wheel_spring = -1.0
+          last_wheel_damp = -1.0
+          last_numrays = -1
+          last_width = -1
+          last_radius = -1
+          last_propulsed = 0
+          last_mass = 0
+          
+          c_wheel_idx = 0
+          f.write("\t\t\"pressureWheels\":[\n\t\t\t[\"name\",\"hubGroup\",\"group\",\"node1:\",\"node2:\",\"nodeS\",\"nodeArm:\",\"wheelDir\"],\n")
+          for w in self.wheels:
+            # write vars if changed
+            if w.drivetype > 0 and last_propulsed == 0:
+              last_propulsed = 1
+              f.write("\t\t\t{\"propulsed\":" + str(last_propulsed) + "}\n")
+            elif w.drivetype == 0 and last_propulsed == 1:
+              last_propulsed = 0
+              f.write("\t\t\t{\"propulsed\":" + str(last_propulsed) + "}\n")
+              
+            if w.spring != last_wheel_spring:
+              last_wheel_spring = w.spring
+              f.write("\t\t\t{\"beamSpring\":" + str(w.spring) + "}\n")
+            if w.damp != last_wheel_damp:
+              last_wheel_damp = w.damp
+              f.write("\t\t\t{\"beamDamp\":" + str(w.damp) + "}\n")
+            if w.num_rays != last_numrays:
+              last_numrays = w.num_rays
+              f.write("\t\t\t{\"numRays\":" + str(w.num_rays) + "}\n")
+            if w.width != last_width:
+              last_width = w.width
+              f.write("\t\t\t{\"hubWidth\":" + str(w.width) + "}\n")
+            if w.radius != last_radius:
+              last_radius = w.radius
+              f.write("\t\t\t{\"hubRadius\":" + str(w.radius) + "}\n")
+            if w.mass != last_mass:
+              last_mass = w.mass
+              f.write("\t\t\t{\"hubWeight\":" + str(w.mass / w.num_rays) + "}\n")
+              
+            # write wheel line
+            if w.type == "wheels":
+              snode = "\"" + w.snode + "\"" if w.snode != "node9999" else 9999
+              drivetype = -1 if w.drivetype == 2 else w.drivetype
+              f.write("\t\t\t[\"rorwheel" + str(c_wheel_idx) + "\", \"none\", \"none\", \"" + w.nid1 + "\", \"" + w.nid2 + "\", "  + str(snode) + ", \"" + w.armnode + "\", " + str(drivetype) + "],\n\n")
+
+            #increment wheel ID
+            c_wheel_idx += 1
+          f.write("\t\t],\n\n")
+      
       # write hydros
       if len(self.hydros) > 0:
           last_beam_spring = -1.0
@@ -392,6 +446,7 @@ class Rig:
 
           f.write("\t\t\"hydros\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
           for h in self.hydros:
+              # write vars if changed
               if h.beamSpring != last_beam_spring:
                   last_beam_spring = h.beamSpring
                   f.write("\t\t\t{\"beamSpring\":" + str(h.beamSpring) + "}\n")

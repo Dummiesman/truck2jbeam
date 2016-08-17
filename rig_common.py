@@ -206,3 +206,20 @@ class JBeamInformation:
     def __init__(self):
         self.name = "Untitled"
         self.author = "Insert author information"
+        
+
+class WheelTypeA:
+    def __init__(self, radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, spring, damp):
+        self.radius = radius
+        self.width = width
+        self.num_rays = num_rays
+        self.nid1 = nid1
+        self.nid2 = nid2
+        self.snode = snode
+        self.braketype = braketype
+        self.drivetype = drivetype
+        self.armnode = armnode
+        self.mass = mass
+        self.spring = spring
+        self.damp = damp
+        self.type = "wheels"

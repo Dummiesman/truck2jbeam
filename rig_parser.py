@@ -1,4 +1,4 @@
-from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption
+from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption, WheelTypeA
 import re
 import sys
 
@@ -268,6 +268,22 @@ def ParseCinecam(components):
   return InternalCamera(xpos, ypos, zpos, n1, n2, n3, n4, n5, n6, spring, damp)
   
 
+def ParseWheel(components):
+  radius = float(components[0])  
+  width = float(components[1])
+  numrays = int(components[2])
+  nid1 = ParseNodeName(components[3])
+  nid2 = ParseNodeName(components[4])
+  snode = ParseNodeName(components[5])
+  braketype = int(components[6])
+  drivetype = int(components[7])
+  armnode = ParseNodeName(components[8])
+  mass = float(components[9])
+  spring = float(components[10])
+  damp = float(components[11])
+  
+  return WheelTypeA(radius, width, numrays, nid1, nid2, snode, braketype, drivetype, armnode, mass, spring, damp)
+  
 def ParseSetBeamDefaults(components):
   new_spring = float(components[1])
   new_damp = float(components[2])
