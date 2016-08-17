@@ -19,6 +19,7 @@ class Rig:
       self.rails = []
       self.slidenodes = []
       self.wheels = []
+      self.flexbodies = []
       self.torquecurve = None
       self.engine = None
       self.engoption = None
@@ -26,6 +27,7 @@ class Rig:
       self.minimass = 50
       self.dry_weight = 10000
       self.load_weight = 10000
+      self.type = 'truck'
     
     def calculate_masses(self):
       """Python version of https://github.com/RigsOfRods/rigs-of-rods/blob/master/source/main/physics/Beam.cpp#L814"""
@@ -125,6 +127,16 @@ class Rig:
                   last_friction = defaults[1]
               elif section_name == "detacher_group":
                   cur_detach_group = int(line_cmps[1])
+              elif section_name == "forset" and len(self.flexbodies) > 0 :
+                  forset = parser.ParseForset(line_cmps)
+                  group = parser.ParseGroupName(self.flexbodies[len(self.flexbodies) - 1].mesh)
+                  for ranges in forset:
+                    for cr in range(ranges[0], ranges[1] + 1):
+                      if cr >= len(self.nodes):
+                        # contains invalid node index
+                        break
+                      else:
+                        self.nodes[cr].group.append(group)
               elif section_name == "end":
                   # stop parsing!
                   break
@@ -177,15 +189,6 @@ class Rig:
               self.refnodes = parser.ParseRefnodes(line_cmps)
           elif current_section == "cinecam" and num_components >= 13:
               self.internal_cameras.append(parser.ParseCinecam(line_cmps))
-          elif current_section == "flexbodies" and num_components >= 10:
-              # convert flexbodies (WiP!)
-              relative_x_offset = float(line_cmps[3])
-              relative_y_offset = float(line_cmps[4])
-              z_offset = float(line_cmps[5])
-              xrot = float(line_cmps[6])
-              yrot = float(line_cmps[7])
-              zrot = float(line_cmps[8])
-              mesh_name = line_cmps[9]
           elif current_section == "minimass" and num_components >= 1:
               self.minimass = float(line_cmps[0])
           elif current_section == "shocks" and num_components >= 7:
@@ -217,7 +220,8 @@ class Rig:
               contacter_node_obj = next((x for x in self.nodes if x.name == contacter_node), None)
               if contacter_node_obj is not None:
                   contacter_node_obj.selfCollision = True
-                  
+          elif current_section == "flexbodies" and num_components >= 10:
+              self.flexbodies.append(parser.ParseFlexbody(line_cmps))
       # final checks
       if self.torquecurve is None and self.engine is not None:
         self.torquecurve = curves.get_curve("default")
@@ -290,34 +294,6 @@ class Rig:
           f.write("\t\t}\n\n")
           
             
-            
-      # write nodes
-      if len(self.nodes) > 0:
-          last_node_mass = -1.0
-          last_node_friction = 1.0
-          last_selfcollision = False
-          f.write("\t\t\"nodes\":[\n\t\t\t[\"id\", \"posX\", \"posY\", \"posZ\"],\n")
-          for n in self.nodes:
-              if n.mass != last_node_mass:
-                  f.write("\t\t\t{\"nodeWeight\": " + str(n.mass) + "},\n")
-                  last_node_mass = n.mass
-              if n.frictionCoef != last_node_friction:
-                  f.write("\t\t\t{\"frictionCoef\": " + str(n.frictionCoef) + "},\n")
-                  last_node_friction = n.frictionCoef
-              if n.selfCollision != last_selfcollision:
-                  f.write("\t\t\t{\"selfCollision\": " + str(n.selfCollision).lower() + "},\n")
-                  last_selfcollision = n.selfCollision
-                  
-              # write node line
-              f.write("\t\t\t[\"" + n.name + "\", " + str(n.x) + ", " + str(n.y) + ", " + str(n.z))
-
-              # write inline stuff
-              if n.coupler:
-                  f.write(", {\"couplerTag\":\"fifthwheel\"}")
-              
-              f.write("],\n")
-          f.write("\t\t],\n\n")
-      
       # write cameras
       if len(self.internal_cameras) > 0:
           last_beam_spring = -1.0
@@ -338,7 +314,53 @@ class Rig:
               f.write("\t\t\t[\"" + c.type + "\", " + str(c.x) + ", " + str(c.y) + ", " + str(c.z) + ", " + str(c.fov) + ", \"" + c.id1 + "\", \"" + c.id2 + "\", \"" + c.id3 + "\", \"" + c.id4 + "\", \"" + c.id5 + "\", \"" + c.id6 + "\"],\n")
           
           f.write("\t\t],\n\n")
-          
+      
+      # write flexbodies
+      if len(self.flexbodies) > 0:
+          f.write("\t\t\"flexbodies\":[\n\t\t\t[\"mesh\", \"[group]:\", \"nonFlexMaterials\"],\n")
+          for fb in self.flexbodies:
+            f.write("\t\t\t[\"" + parser.ParseGroupName(fb.mesh) + "\", [\"" + parser.ParseGroupName(fb.mesh) + "\"]],\n")
+          f.write("\t\t],\n\n")  
+
+      # write nodes
+      if len(self.nodes) > 0:
+          last_node_mass = -1.0
+          last_node_friction = 1.0
+          last_selfcollision = False
+          last_groups = []
+          f.write("\t\t\"nodes\":[\n\t\t\t[\"id\", \"posX\", \"posY\", \"posZ\"],\n")
+          for n in self.nodes:
+              if n.mass != last_node_mass:
+                  f.write("\t\t\t{\"nodeWeight\": " + str(n.mass) + "},\n")
+                  last_node_mass = n.mass
+              if n.frictionCoef != last_node_friction:
+                  f.write("\t\t\t{\"frictionCoef\": " + str(n.frictionCoef) + "},\n")
+                  last_node_friction = n.frictionCoef
+              if n.selfCollision != last_selfcollision:
+                  f.write("\t\t\t{\"selfCollision\": " + str(n.selfCollision).lower() + "},\n")
+                  last_selfcollision = n.selfCollision
+              if n.group != last_groups:
+                  if len(n.group) > 0:
+                    f.write("\t\t\t{\"group\": [")
+                    for g in n.group:
+                      f.write("\"" + g + "\", ")
+                    f.seek(f.tell() - 2, 0)
+                    f.write("]},\n")
+                  else:
+                    f.write("\t\t\t{\"group\": \"\"},\n")
+                  
+                  last_groups = n.group
+                  
+              # write node line
+              f.write("\t\t\t[\"" + n.name + "\", " + str(n.x) + ", " + str(n.y) + ", " + str(n.z))
+
+              # write inline stuff
+              if n.coupler:
+                  f.write(", {\"couplerTag\":\"fifthwheel\"}")
+              
+              f.write("],\n")
+          f.write("\t\t],\n\n")
+      
       # write beams
       if len(self.beams) > 0:
           last_beam_spring = -1.0
@@ -456,6 +478,7 @@ class Rig:
               f.write("\t\t\t{\"hubWeight\":" + str(w.mass / w.num_rays) + "}\n")
               
             # write wheel line
+            # TODO : WRITE RUBBER HUB ON 'wheels'!
             if w.type == "wheels":
               snode = "\"" + w.snode + "\"" if w.snode != "node9999" else 9999
               drivetype = -1 if w.drivetype == 2 else w.drivetype

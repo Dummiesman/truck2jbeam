@@ -1,4 +1,4 @@
-from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption, WheelTypeA
+from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption, WheelTypeA, Flexbody
 import re
 import sys
 
@@ -9,7 +9,13 @@ def ParseNodeName(name):
   else:
     return name
 
-    
+
+def ParseGroupName(name):
+  return name.replace(".mesh","").replace(".","_")
+
+
+
+
 def PrepareLine(line):
   """Component-ize a line"""
   if line[0] == ";" or len(line) == 0:
@@ -84,6 +90,36 @@ def ParseNode(components, nodes2 = False):
       
   return node_object
 
+
+def ParseFlexbody(components):
+  refnode = ParseNodeName(components[0])
+  xnode = ParseNodeName(components[1])
+  ynode = ParseNodeName(components[2])
+  xoffset = float(components[3])
+  yoffset = float(components[4])
+  zoffset = float(components[5])
+  xrot = float(components[6])
+  yrot = float(components[7])
+  zrot = float(components[8])
+  mesh = components[9]
+  return Flexbody(refnode, xnode, ynode, xoffset, yoffset, zoffset, xrot, yrot, zrot, mesh)
+  
+  
+def ParseForset(components):
+  ranges = []
+  
+  for cmps in range(len(components) -1):
+    cmp = components[cmps+1]
+    if "-" in cmp:
+      nodeids = cmp.split("-")
+      ranges.append([int(nodeids[0]), int(nodeids[1])])
+    else:
+      nodeid = int(cmp)
+      ranges.append([nodeid, nodeid])
+   
+  return ranges
+
+  
 def ParseRailgroup(components):
   railgroup_id = "railgroup" + components[0]
   railgroup_nodes = []

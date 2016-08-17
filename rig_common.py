@@ -99,6 +99,7 @@ class Node:
         self.collision = True
         self.selfCollision = False
         self.frictionCoef = 1.0
+        self.group = []
         
 class Beam:
     def __init__(self, nid1, nid2, spring, damp, strength, deform):
@@ -191,10 +192,12 @@ class Refnodes:
         self.left = left
 
 
-class RoRFlexbody:
-    def __init__(self, mesh, forset_groups, offsetX, offsetY, offsetZ, rotX, rotY, rotZ):
+class Flexbody:
+    def __init__(self, refnode, xnode, ynode, offsetX, offsetY, offsetZ, rotX, rotY, rotZ, mesh):
         self.mesh = mesh
-        self.forset_groups = forset_groups
+        self.refnode = refnode
+        self.xnode = xnode
+        self.ynode = ynode
         self.offsetX = offsetX
         self.offsetY = offsetY
         self.offsetZ = offsetZ
