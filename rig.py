@@ -1,4 +1,4 @@
-from rig_common import Node, Beam, truck_sections, truck_inline_sections
+from rig_common import truck_sections, truck_inline_sections
 import rig_parser as parser
 import rig_torquecurves as curves
 
@@ -39,9 +39,9 @@ class Rig:
       for n in self.nodes:
           if not n.load_bearer:
               n.mass = 0
-          elif n.override_mass == 0:
+          elif n.override_mass == False:
               n.mass = self.load_weight / numloadnodes
-          elif n.override_mass > 0:
+          elif n.override_mass != False:
               n.mass = n.override_mass
 
       avg_lin_dens = 0.0
@@ -53,7 +53,8 @@ class Rig:
               if node1 is not None and node2 is not None:
                 beam_length = VectorDistance(node1.x, node1.y, node1.z, node2.x, node2.y, node2.z)
                 avg_lin_dens += beam_length
-
+              else:
+                print("link not found : " + b.id1 + ", " + b.id2)
       for b in self.beams:
           if b.type != 'VIRTUAL':
               node1 = next((x for x in self.nodes if x.name == b.id1), None)
@@ -65,7 +66,9 @@ class Rig:
                 
                 node1.mass += half_mass
                 node2.mass += half_mass
-
+              else:
+                print("link not found : " + b.id1 + ", " + b.id2)
+                
       for n in self.nodes:
           if n.mass < self.minimass:
               n.mass = self.minimass
@@ -83,6 +86,13 @@ class Rig:
       last_beamdamp = 12000
       last_beamdeform = 400000
       last_beamstrength = 1000000
+      
+      springscale = 1
+      dampscale = 1
+      deformscale = 1
+      strengthscale = 1
+      
+      cur_detach_group = 0
       
       # parse .truck
       current_section = None
@@ -103,6 +113,10 @@ class Rig:
               if section_name == "set_beam_defaults" and num_components >= 5:
                   # set public stuff
                   last_beamspring, last_beamdamp, last_beamdeform, last_beamstrength = parser.ParseSetBeamDefaults(line_cmps)
+              elif section_name == "set_beam_defaults_scale" and num_components >= 5:
+                  springscale, dampscale, deformscale, strengthscale = parser.ParseSetBeamDefaults(line_cmps)
+              elif section_name == "detacher_group":
+                  cur_detach_group = int(line_cmps[1])
               elif section_name == "end":
                   # stop parsing!
                   break
@@ -118,9 +132,11 @@ class Rig:
           if (current_section == "nodes" or current_section == "nodes2") and num_components >= 4:
               self.nodes.append(parser.ParseNode(line_cmps))
           elif current_section == "beams" and num_components >= 2:
-              self.beams.append(parser.ParseBeam(line_cmps, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform))
+              beam_object = parser.ParseBeam(line_cmps, last_beamspring * springscale, last_beamdamp * dampscale, last_beamstrength * strengthscale, last_beamdeform * deformscale)
+              parser.SetBeamBreakgroup(beam_object, cur_detach_group)
+              self.beams.append(beam_object)
           elif current_section == "hydros" and num_components >= 3:
-              self.hydros.append(parser.ParseHydro(line_cmps, last_beamspring, last_beamdamp, last_beamstrength, last_beamdeform))
+              self.hydros.append(parser.ParseHydro(line_cmps, last_beamspring, last_beamdamp, last_beamstrength * strengthscale, last_beamdeform * deformscale))
           elif current_section == "globals" and num_components >= 2:
               self.dry_weight = float(line_cmps[0])
               self.load_weight = float(line_cmps[1])
@@ -158,9 +174,13 @@ class Rig:
           elif current_section == "minimass" and num_components >= 1:
               self.minimass = float(line_cmps[0])
           elif current_section == "shocks" and num_components >= 7:
-              self.beams.append(parser.ParseShock(line_cmps, last_beamstrength, last_beamdeform))
+              beam_object = parser.ParseShock(line_cmps, last_beamstrength * strengthscale, last_beamdeform * deformscale)
+              parser.SetBeamBreakgroup(beam_object, cur_detach_group)
+              self.beams.append(beam_object)
           elif current_section == "shocks2" and num_components >= 13:
-              self.beams.append(parser.ParseShock2(line_cmps, last_beamstrength, last_beamdeform))
+              beam_object = parser.ParseShock2(line_cmps, last_beamstrength * strengthscale, last_beamdeform * deformscale)
+              parser.SetBeamBreakgroup(beam_object, cur_detach_group)
+              self.beams.append(beam_object)
           elif current_section == "engine" and num_components >= 7 and self.engine is None:
               self.engine = parser.ParseEngine(line_cmps)
           elif current_section == "engoption" and num_components >= 2 and self.engine is not None:
@@ -300,7 +320,7 @@ class Rig:
           last_beam_precomp = -1.0
           last_beam_type = 'NONEXISTANT'
           last_beam_damprebound = False
-          
+          last_breakgroup = ''
           f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
           for b in self.beams:
               if b.beamDampRebound != last_beam_damprebound:
@@ -330,7 +350,9 @@ class Rig:
               if b.beamPrecompression != last_beam_precomp:
                   last_beam_precomp = b.beamPrecompression
                   f.write("\t\t\t{\"beamPrecompression\":" + str(b.beamPrecompression) + "}\n")
-              
+              if b.breakGroup != last_breakgroup:
+                  last_breakgroup = b.breakGroup
+                  f.write("\t\t\t{\"breakGroup\":\"" + b.breakGroup + "\"}\n")
               # write beam line
               f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n")
               

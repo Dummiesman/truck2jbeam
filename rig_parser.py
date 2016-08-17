@@ -34,7 +34,7 @@ def PrepareLine(line):
   # strip empty / bad stuff/ spaces
   line_lst = [x for x in line_lst if x]
   
-  rejoined_lst = "".join(line_lst).replace(",,", ",")
+  rejoined_lst = "".join(line_lst)
 
   # invalid?
   if len(rejoined_lst) == 0:
@@ -45,7 +45,7 @@ def PrepareLine(line):
   if rejoined_lst.startswith(","):
       rejoined_lst = rejoined_lst[1:]
 
-  rejoined_lst = rejoined_lst.replace(" ","")
+  rejoined_lst = rejoined_lst.replace(" ","").replace(",,",",")
   components = rejoined_lst.split(',')
 
   # blank?
@@ -55,12 +55,8 @@ def PrepareLine(line):
     return components
       
 def ParseNode(components, nodes2 = False):
-  nid = components[0]
+  nid = ParseNodeName(components[0])
   
-  # convert to a more BeamNG style name if not nodes2
-  if not nodes2:
-    nid = "node" + nid
-    
   nx = float(components[3]) 
   ny = float(components[1])
   nz = float(components[2])
@@ -68,10 +64,6 @@ def ParseNode(components, nodes2 = False):
   flags = ''
   if len(components) >= 5:
       flags = components[4]
-  
-  
-  
-  
   
   node_object = Node(nid, nx, ny, nz)
   
@@ -81,6 +73,10 @@ def ParseNode(components, nodes2 = False):
       num_in_flags = re.findall(r"[-+]?\d*\.\d+|\d+", flags)
       if len(num_in_flags) > 0:
         node_object.override_mass = float(num_in_flags[0])
+      else:
+        num_in_flags = re.findall(r"[-+]?\d*\.\d+|\d+", components[len(components) - 1])
+        if len(num_in_flags) > 0:
+          node_object.override_mass = float(num_in_flags[0])
   if 'h' in flags:
       node_object.coupler = True
   if 'c' in flags:
@@ -287,6 +283,10 @@ def ParseSetBeamDefaults(components):
       new_deform = 400000
   if new_break < 0:
       new_break = 100000
-      
+   
   return [new_spring, new_damp, new_deform, new_break]
       
+def SetBeamBreakgroup(beam, id):
+  if id == 0:
+    return
+  beam.breakGroup = "detacher_group_" + str(id)

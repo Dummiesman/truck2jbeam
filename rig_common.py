@@ -55,7 +55,9 @@ truck_sections = ["globals",
                   "screwprops",
                   "description",
                   "rollon",
-                  "comment"]
+                  "comment",
+                  "soundsources",
+                  "minimass"]
 
 truck_inline_sections = ["set_skeleton_settings",
                          "set_beam_defaults",
@@ -78,7 +80,8 @@ truck_inline_sections = ["set_skeleton_settings",
                          "sectionconfig",
                          "importcommands",
                          "forwardcommands",
-                         "forset"]
+                         "forset",
+                         "detacher_group"]
                          
 # storage classes
 class Node:
@@ -90,7 +93,7 @@ class Node:
         self.fixed = False
         self.mass = 10
         self.load_bearer = False
-        self.override_mass = 0.0
+        self.override_mass = False
         self.coupler = False
         self.collision = True
         self.selfCollision = False
@@ -107,7 +110,10 @@ class Beam:
         self.beamLongBound = 1.0
         self.beamPrecompression = 1.0
         self.beamDampRebound = False
+        self.beamLimitSpring = spring * 2
+        self.beamLimitDamp = damp / 2
         self.type = 'NORMAL'
+        self.breakGroup = ''
 
         
 class Engine:
