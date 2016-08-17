@@ -95,12 +95,12 @@ def ParseFlexbody(components):
   refnode = ParseNodeName(components[0])
   xnode = ParseNodeName(components[1])
   ynode = ParseNodeName(components[2])
-  xoffset = float(components[3])
-  yoffset = float(components[4])
-  zoffset = float(components[5])
-  xrot = float(components[6])
-  yrot = float(components[7])
-  zrot = float(components[8])
+  xoffset = float(components[5])
+  yoffset = float(components[3])
+  zoffset = float(components[4])
+  xrot = float(components[8])
+  yrot = float(components[6])
+  zrot = float(components[7])
   mesh = components[9]
   return Flexbody(refnode, xnode, ynode, xoffset, yoffset, zoffset, xrot, yrot, zrot, mesh)
   

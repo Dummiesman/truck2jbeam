@@ -319,7 +319,20 @@ class Rig:
       if len(self.flexbodies) > 0:
           f.write("\t\t\"flexbodies\":[\n\t\t\t[\"mesh\", \"[group]:\", \"nonFlexMaterials\"],\n")
           for fb in self.flexbodies:
-            f.write("\t\t\t[\"" + parser.ParseGroupName(fb.mesh) + "\", [\"" + parser.ParseGroupName(fb.mesh) + "\"]],\n")
+            #return fr + (to - fr) * t
+            refnode = next((x for x in self.nodes if x.name == fb.refnode), None)
+            xnode = next((x for x in self.nodes if x.name == fb.xnode), None)
+            ynode = next((x for x in self.nodes if x.name == fb.ynode), None)
+            
+            real_x_offset = refnode.x + (xnode.x - refnode.x) * fb.offsetX
+            real_y_offset = refnode.y + (xnode.y - refnode.y) * fb.offsetY
+            real_z_offset = fb.offsetZ
+            
+            real_x_rotation = fb.rotX
+            real_y_rotation = fb.rotY
+            real_z_rotation = fb.rotZ - 180
+            
+            f.write("\t\t\t[\"" + parser.ParseGroupName(fb.mesh) + "\", [\"" + parser.ParseGroupName(fb.mesh) + "\"], [], {\"pos\":{\"x\":" + str(real_x_offset) + ", \"y\":" + str(real_y_offset) + ", \"z\":" + str(real_z_offset) + "}, \"rot\":{\"x\":" + str(real_x_rotation) + ", \"y\":" + str(real_y_rotation) + ", \"z\":" + str(real_z_rotation) + "}, \"scale\":{\"x\":1, \"y\":1, \"z\":1}}],\n")
           f.write("\t\t],\n\n")  
 
       # write nodes
