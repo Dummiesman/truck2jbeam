@@ -16,9 +16,10 @@ if __name__ == "__main__":
     
   # convert file
   r = Rig()
-  print("Parsing *.truck file...")
-  r.from_file(rigfile)
   r.type = os.path.splitext(rigfile)[1][1:].lower()
+  print("Parsing *." + r.type + " file...")
+  r.from_file(rigfile)
+  
   
   print("Calculating node masses...")
   r.calculate_masses()

@@ -408,6 +408,12 @@ class Rig:
           xnode = next((x for x in self.nodes if x.name == fb.xnode), None)
           ynode = next((x for x in self.nodes if x.name == fb.ynode), None)
           
+         
+          if refnode is None or xnode is None or ynode is None:
+            print("Can't find nodes for flexbody " + fb.mesh + ". Possibly forset on tires?")
+            continue
+          
+          
           real_x_offset = refnode.x + (xnode.x - refnode.x) * fb.offsetX
           real_y_offset = refnode.y + (ynode.y - refnode.y) * fb.offsetY
           real_z_offset = fb.offsetZ - refnode.z
