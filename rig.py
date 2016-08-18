@@ -279,8 +279,8 @@ class Rig:
               self.wheels.append(parser.ParseMeshWheel(line_cmps))
           elif current_section == "meshwheels2" and num_components >= 14:
               wheel_obj = parser.ParseMeshWheel(line_cmps)
-              wheel_obj.hub_spring = last_beam_spring
-              wheel_obj.hub_damp = last_beam_damp
+              wheel_obj.hub_spring = last_beamspring
+              wheel_obj.hub_damp = last_beamdamp
               wheel_obj.subtype = "meshwheels2"
               self.wheels.append(wheel_obj)
           elif current_section == "flexbodywheels" and num_components >= 16:

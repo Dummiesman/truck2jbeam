@@ -58,7 +58,8 @@ truck_sections = ["globals",
                   "comment",
                   "soundsources",
                   "minimass",
-                  "disabledefaultsounds"]
+                  "disabledefaultsounds",
+                  "guisettings"]
 
 truck_inline_sections = ["set_skeleton_settings",
                          "set_beam_defaults",
