@@ -1,4 +1,4 @@
-from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption, WheelTypeA, Flexbody
+from rig_common import Node, Beam, Hydro, InternalCamera, Refnodes, Rail, Slidenode, Engine, Engoption, WheelTypeA, WheelTypeB, Flexbody
 import re
 import sys
 
@@ -16,7 +16,7 @@ def ParseGroupName(name):
 
 
 
-def PrepareLine(line):
+def PrepareLine(line, skip_space_check = False):
   """Component-ize a line"""
   if line[0] == ";" or len(line) == 0:
       return None
@@ -34,7 +34,7 @@ def PrepareLine(line):
 
   line_lst = list(line.lower().replace("\t"," ").replace("\n",""))
 
-  if line_has_spaces:
+  if line_has_spaces and skip_space_check == False:
       line_lst[line.index(' ')] = ','
 
   # strip empty / bad stuff/ spaces
@@ -51,8 +51,13 @@ def PrepareLine(line):
   if rejoined_lst.startswith(","):
       rejoined_lst = rejoined_lst[1:]
 
-  rejoined_lst = rejoined_lst.replace(" ","").replace(",,",",")
+    
+  rejoined_lst = rejoined_lst.replace(",,",",").replace(", ",",").replace(",\t",",")
   components = rejoined_lst.split(',')
+  
+  for c in range(len(components)):
+    components[c] = components[c].strip()
+    
 
   # blank?
   if len(components) == 0:
@@ -324,6 +329,84 @@ def ParseWheel(components):
     
   return WheelTypeA(radius, width, numrays, nid1, nid2, snode, braketype, drivetype, armnode, mass, spring, damp)
 
+
+def ParseFlexbodyWheel(components):
+  tire_radius = float(components[0])
+  hub_radius = float(components[1])
+  width = float(components[2])
+  num_rays = int(components[3])
+  nid1 = ParseNodeName(components[4])
+  nid2 = ParseNodeName(components[5])
+  snode = ParseNodeName(components[6])
+  braketype = int(components[7])
+  drivetype = int(components[8])
+  armnode = ParseNodeName(components[9])
+  mass = float(components[10])
+  tire_spring = float(components[11])
+  tire_damp = float(components[12])
+  hub_spring = float(components[13])
+  hub_damp = float(components[14])
+  
+  # fix negative arm node ids
+  if armnode[0] == "-":
+    armnode = ParseNodeName(armnode[1:])
+
+  wheel_obj = WheelTypeB(tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp)
+  wheel_obj.subtype = "flexbodywheels"
+  return wheel_obj
+
+
+def ParseMeshWheel(components):
+  tire_radius = float(components[0])
+  hub_radius = float(components[1])
+  width = float(components[2])
+  num_rays = int(components[3])
+  nid1 = ParseNodeName(components[4])
+  nid2 = ParseNodeName(components[5])
+  snode = ParseNodeName(components[6])
+  braketype = int(components[7])
+  drivetype = int(components[8])
+  armnode = ParseNodeName(components[9])
+  mass = float(components[10])
+  hub_spring = float(components[11])
+  hub_damp = float(components[12])
+  tire_spring = hub_spring
+  tire_damp = hub_damp
+  
+  # fix negative arm node ids
+  if armnode[0] == "-":
+    armnode = ParseNodeName(armnode[1:])
+  
+  wheel_obj = WheelTypeB(tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp)
+  wheel_obj.subtype = "meshwheels"
+  return wheel_obj
+
+  
+def ParseWheel2(components):
+  hub_radius = float(components[0])
+  tire_radius = float(components[1])
+  width = float(components[2])
+  num_rays = int(components[3])
+  nid1 = ParseNodeName(components[4])
+  nid2 = ParseNodeName(components[5])
+  snode = ParseNodeName(components[6])
+  braketype = int(components[7])
+  drivetype = int(components[8])
+  armnode = ParseNodeName(components[9])
+  mass = float(components[10])
+  hub_spring = float(components[11])
+  hub_damp = float(components[12])
+  tire_spring = float(components[13])
+  tire_damp = float(components[14])
+  
+  # fix negative arm node ids
+  if armnode[0] == "-":
+    armnode = ParseNodeName(armnode[1:])
+    
+  wheel_obj = WheelTypeB(tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp)
+  wheel_obj.subtype = "wheels2"
+  return wheel_obj
+  
 
 def ParseSetNodeDefaults(components):
   new_loadweight = float(components[1])

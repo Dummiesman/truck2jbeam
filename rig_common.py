@@ -212,6 +212,13 @@ class JBeamInformation:
         self.author = "Insert author information"
         
 
+class Axle:
+    def __init__(self, wid1, wid2, type, state):
+        self.wid1 = wid1
+        self.wid2 = wid2
+        self.type = type
+        self.state = state
+        
 class WheelTypeA:
     def __init__(self, radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, spring, damp):
         self.radius = radius
@@ -227,3 +234,24 @@ class WheelTypeA:
         self.spring = spring
         self.damp = damp
         self.type = "wheels"
+        
+
+class WheelTypeB:
+    def __init__(self, tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp):
+        self.tire_radius = tire_radius
+        self.hub_radius = hub_radius
+        self.width = width
+        self.num_rays = num_rays
+        self.nid1 = nid1
+        self.nid2 = nid2
+        self.snode = snode
+        self.braketype = braketype
+        self.drivetype = drivetype
+        self.armnode = armnode
+        self.mass = mass
+        self.tire_spring = tire_spring
+        self.tire_damp = tire_damp
+        self.hub_spring = hub_spring
+        self.hub_damp = hub_damp
+        self.type = "wheels.advanced"
+        self.subtype = "None"

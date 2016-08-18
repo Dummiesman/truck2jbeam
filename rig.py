@@ -1,4 +1,4 @@
-from rig_common import truck_sections, truck_inline_sections
+from rig_common import truck_sections, truck_inline_sections, Axle
 import rig_parser as parser
 import rig_torquecurves as curves
 
@@ -20,6 +20,8 @@ class Rig:
       self.slidenodes = []
       self.wheels = []
       self.flexbodies = []
+      self.axles = []
+      self.brakes = []
       self.torquecurve = None
       self.engine = None
       self.engoption = None
@@ -185,6 +187,47 @@ class Rig:
 
               node = next((x for x in self.nodes if x.name == nid), None)
               node.fixed = True
+          elif current_section == "axles" and num_components >= 3:
+              axle_cmps = parser.PrepareLine(line, True)
+              w1 = axle_cmps[0][3:-1].split(" ")
+              w2 = axle_cmps[1][3:-1].split(" ")
+              dt = axle_cmps[2][3:-1]
+              
+              # parse node names
+              for n in range(2):
+                w1[n] = parser.ParseNodeName(w1[n])
+                w2[n] = parser.ParseNodeName(w2[n])
+              
+              wid1 = None
+              wid2 = None
+              state = None
+              type = None
+              
+              # convert 'flags'
+              if dt[0] == 'l':
+                type = "lsd"
+                state = "locked"
+              elif dt[0] == 's':
+                type = "lsd"
+                state = "open"
+              elif dt[0] == 'o':
+                type = "open"
+                state = "open"
+              
+              # find wheels
+              current_wheel_id = 0
+              for w in self.wheels:
+                if w.nid1 == w1[0] or w.nid1 == w1[1] or w.nid2 == w1[0] or w.nid2 == w1[1]:
+                  wid1 = "rorwheel" + str(current_wheel_id)
+                elif w.nid1 == w2[0] or w.nid1 == w2[1] or w.nid2 == w2[0] or w.nid2 == w2[1]:
+                  wid2 = "rorwheel" + str(current_wheel_id)
+                  
+                current_wheel_id += 1
+              
+              # found both wheels
+              if wid1 is not None and wid2 is not None:
+                self.axles.append(Axle(wid1, wid2, type, state))
+              
           elif current_section == "cameras" and num_components >= 3:
               self.refnodes = parser.ParseRefnodes(line_cmps)
           elif current_section == "cinecam" and num_components >= 13:
@@ -214,12 +257,28 @@ class Rig:
               self.torquecurve = curves.get_curve(line_cmps[0])
           elif current_section == "wheels" and num_components >= 12:
               self.wheels.append(parser.ParseWheel(line_cmps))
+          elif current_section == "wheels2" and num_components >= 15:
+              self.wheels.append(parser.ParseWheel2(line_cmps))
+          elif current_section == "meshwheels" and num_components >= 14:
+              self.wheels.append(parser.ParseMeshWheel(line_cmps))
+          elif current_section == "meshwheels2" and num_components >= 14:
+              wheel_obj = parser.ParseMeshWheel(line_cmps)
+              wheel_obj.hub_spring = last_beam_spring
+              wheel_obj.hub_damp = last_beam_damp
+              wheel_obj.subtype = "meshwheels2"
+              self.wheels.append(wheel_obj)
+          elif current_section == "flexbodywheels" and num_components >= 16:
+              self.wheels.append(parser.ParseFlexbodyWheel(line_cmps))
           elif current_section == "contacters" and num_components >= 1:
               # set node as contacter
               contacter_node = parser.ParseNodeName(line_cmps[0])
               contacter_node_obj = next((x for x in self.nodes if x.name == contacter_node), None)
               if contacter_node_obj is not None:
                   contacter_node_obj.selfCollision = True
+          elif current_section == "brakes" and num_components >= 1:
+              brakeforce = float(line_cmps[0])
+              parkforce = float(line_cmps[1]) if num_components >= 2 else brakeforce * 2
+              self.brakes = [brakeforce, parkforce]
           elif current_section == "flexbodies" and num_components >= 10:
               self.flexbodies.append(parser.ParseFlexbody(line_cmps))
       # final checks
@@ -238,9 +297,9 @@ class Rig:
       
       # write refnodes
       if self.refnodes is not None:
-          f.write("\t\t\"refNodes\":[\n\t\t\t[\"ref:\", \"back:\", \"left:\", \"up:\"],\n")
-          f.write("\t\t\t[\"" + self.refnodes.center + "\", \"" + self.refnodes.back + "\", \"" + self.refnodes.left + "\", \"" + self.refnodes.center + "\"]\n")
-          f.write("\t\t],\n\n")
+        f.write("\t\t\"refNodes\":[\n\t\t\t[\"ref:\", \"back:\", \"left:\", \"up:\"],\n")
+        f.write("\t\t\t[\"" + self.refnodes.center + "\", \"" + self.refnodes.back + "\", \"" + self.refnodes.left + "\", \"" + self.refnodes.center + "\"]\n")
+        f.write("\t\t],\n\n")
       
       # write torquecurve
       if self.torquecurve is not None:
@@ -254,176 +313,176 @@ class Rig:
         
       # write engine
       if self.engine is not None:
-          f.write("\t\t\"engine\":{\n")
+        f.write("\t\t\"engine\":{\n")
+        
+        # idle/max RPM
+        if self.engoption is None:
+          f.write("\t\t\t\"idleRPM\":800,\n")
+        else:
+          f.write("\t\t\t\"idleRPM\":" + str(self.engoption.idle_rpm) + ",\n")
           
-          # idle/max RPM
-          if self.engoption is None:
-            f.write("\t\t\t\"idleRPM\":800,\n")
-          else:
-            f.write("\t\t\t\"idleRPM\":" + str(self.engoption.idle_rpm) + ",\n")
-            
-          f.write("\t\t\t\"maxRPM\":" + str(self.engine.max_rpm * 1.25) + ",\n")
+        f.write("\t\t\t\"maxRPM\":" + str(self.engine.max_rpm * 1.25) + ",\n")
+        
+        # shift RPMs
+        f.write("\t\t\t\"shiftDownRPM\":" + str(self.engine.min_rpm) + ",\n")
+        f.write("\t\t\t\"shiftUpRPM\":" + str(self.engine.max_rpm) + ",\n")
+        
+        # diff
+        f.write("\t\t\t\"differential\":" + str(self.engine.differential) + ",\n")
+        
+        # inertia
+        if self.engoption is None:
+          f.write("\t\t\t\"inertia\":10,\n")
+        else:
+          f.write("\t\t\t\"inertia\":" + str(self.engoption.inertia) + ",\n")
           
-          # shift RPMs
-          f.write("\t\t\t\"shiftDownRPM\":" + str(self.engine.min_rpm) + ",\n")
-          f.write("\t\t\t\"shiftUpRPM\":" + str(self.engine.max_rpm) + ",\n")
-          
-          # diff
-          f.write("\t\t\t\"differential\":" + str(self.engine.differential) + ",\n")
-          
-          # inertia
-          if self.engoption is None:
-            f.write("\t\t\t\"inertia\":10,\n")
-          else:
-            f.write("\t\t\t\"inertia\":" + str(self.engoption.inertia) + ",\n")
-            
-          # ratios
-          f.write("\t\t\t\"gears\":[")
-          for g in self.engine.gears:
-            f.write(str(g) + ", ")
-          
-          # seek before ratios last comma/spce
-          f.seek(f.tell() - 2)
-          f.write("],\n")
-          
-          # rest of engoption stuff
-          if self.engoption is not None:
-            f.write("\t\t\t\"clutchTorque\":" + str(self.engoption.clutch_force) + ",\n")
-            f.write("\t\t\t\"clutchDuration\":" + str(self.engoption.clutch_time) + ",\n")
-          
-          f.write("\t\t}\n\n")
-          
+        # ratios
+        f.write("\t\t\t\"gears\":[")
+        for g in self.engine.gears:
+          f.write(str(g) + ", ")
+        
+        # seek before ratios last comma/spce
+        f.seek(f.tell() - 2)
+        f.write("],\n")
+        
+        # rest of engoption stuff
+        if self.engoption is not None:
+          f.write("\t\t\t\"clutchTorque\":" + str(self.engoption.clutch_force) + ",\n")
+          f.write("\t\t\t\"clutchDuration\":" + str(self.engoption.clutch_time) + ",\n")
+        
+        f.write("\t\t}\n\n")
+        
             
       # write cameras
       if len(self.internal_cameras) > 0:
-          last_beam_spring = -1.0
-          last_beam_damp = -1.0
-          
-          #     "camerasInternal":[
-          # 
-          f.write("\t\t\"camerasInternal\":[\n\t\t\t[\"type\", \"x\", \"y\", \"z\", \"fov\", \"id1:\", \"id2:\", \"id3:\", \"id4:\", \"id5:\", \"id6:\"],\n\t\t\t{\"nodeWeight\": 20},\n")
-          for c in self.internal_cameras:
-              if c.beamSpring != last_beam_spring:
-                  last_beam_spring = c.beamSpring
-                  f.write("\t\t\t{\"beamSpring\":" + str(c.beamSpring) + "}\n")
-              if c.beamDamp != last_beam_damp:
-                  last_beam_damp = c.beamDamp
-                  f.write("\t\t\t{\"beamDamp\":" + str(c.beamDamp) + "}\n")
-                  
-              # write camera line
-              f.write("\t\t\t[\"" + c.type + "\", " + str(c.x) + ", " + str(c.y) + ", " + str(c.z) + ", " + str(c.fov) + ", \"" + c.id1 + "\", \"" + c.id2 + "\", \"" + c.id3 + "\", \"" + c.id4 + "\", \"" + c.id5 + "\", \"" + c.id6 + "\"],\n")
-          
-          f.write("\t\t],\n\n")
+        last_beam_spring = -1.0
+        last_beam_damp = -1.0
+        
+        #     "camerasInternal":[
+        # 
+        f.write("\t\t\"camerasInternal\":[\n\t\t\t[\"type\", \"x\", \"y\", \"z\", \"fov\", \"id1:\", \"id2:\", \"id3:\", \"id4:\", \"id5:\", \"id6:\"],\n\t\t\t{\"nodeWeight\": 20},\n")
+        for c in self.internal_cameras:
+            if c.beamSpring != last_beam_spring:
+                last_beam_spring = c.beamSpring
+                f.write("\t\t\t{\"beamSpring\":" + str(c.beamSpring) + "}\n")
+            if c.beamDamp != last_beam_damp:
+                last_beam_damp = c.beamDamp
+                f.write("\t\t\t{\"beamDamp\":" + str(c.beamDamp) + "}\n")
+                
+            # write camera line
+            f.write("\t\t\t[\"" + c.type + "\", " + str(c.x) + ", " + str(c.y) + ", " + str(c.z) + ", " + str(c.fov) + ", \"" + c.id1 + "\", \"" + c.id2 + "\", \"" + c.id3 + "\", \"" + c.id4 + "\", \"" + c.id5 + "\", \"" + c.id6 + "\"],\n")
+        
+        f.write("\t\t],\n\n")
       
       # write flexbodies
       if len(self.flexbodies) > 0:
-          f.write("\t\t\"flexbodies\":[\n\t\t\t[\"mesh\", \"[group]:\", \"nonFlexMaterials\"],\n")
-          for fb in self.flexbodies:
-            #return fr + (to - fr) * t
-            refnode = next((x for x in self.nodes if x.name == fb.refnode), None)
-            xnode = next((x for x in self.nodes if x.name == fb.xnode), None)
-            ynode = next((x for x in self.nodes if x.name == fb.ynode), None)
-            
-            real_x_offset = refnode.x + (xnode.x - refnode.x) * fb.offsetX
-            real_y_offset = refnode.y + (xnode.y - refnode.y) * fb.offsetY
-            real_z_offset = fb.offsetZ
-            
-            real_x_rotation = fb.rotX
-            real_y_rotation = fb.rotY
-            real_z_rotation = fb.rotZ - 180
-            
-            f.write("\t\t\t[\"" + parser.ParseGroupName(fb.mesh) + "\", [\"" + parser.ParseGroupName(fb.mesh) + "\"], [], {\"pos\":{\"x\":" + str(real_x_offset) + ", \"y\":" + str(real_y_offset) + ", \"z\":" + str(real_z_offset) + "}, \"rot\":{\"x\":" + str(real_x_rotation) + ", \"y\":" + str(real_y_rotation) + ", \"z\":" + str(real_z_rotation) + "}, \"scale\":{\"x\":1, \"y\":1, \"z\":1}}],\n")
-          f.write("\t\t],\n\n")  
+        f.write("\t\t\"flexbodies\":[\n\t\t\t[\"mesh\", \"[group]:\", \"nonFlexMaterials\"],\n")
+        for fb in self.flexbodies:
+          #return fr + (to - fr) * t
+          refnode = next((x for x in self.nodes if x.name == fb.refnode), None)
+          xnode = next((x for x in self.nodes if x.name == fb.xnode), None)
+          ynode = next((x for x in self.nodes if x.name == fb.ynode), None)
+          
+          real_x_offset = refnode.x + (xnode.x - refnode.x) * fb.offsetX
+          real_y_offset = refnode.y + (xnode.y - refnode.y) * fb.offsetY
+          real_z_offset = fb.offsetZ
+          
+          real_x_rotation = fb.rotX
+          real_y_rotation = fb.rotY
+          real_z_rotation = fb.rotZ - 180
+          
+          f.write("\t\t\t[\"" + parser.ParseGroupName(fb.mesh) + "\", [\"" + parser.ParseGroupName(fb.mesh) + "\"], [], {\"pos\":{\"x\":" + str(real_x_offset) + ", \"y\":" + str(real_y_offset) + ", \"z\":" + str(real_z_offset) + "}, \"rot\":{\"x\":" + str(real_x_rotation) + ", \"y\":" + str(real_y_rotation) + ", \"z\":" + str(real_z_rotation) + "}, \"scale\":{\"x\":1, \"y\":1, \"z\":1}}],\n")
+        f.write("\t\t],\n\n")  
 
       # write nodes
       if len(self.nodes) > 0:
-          last_node_mass = -1.0
-          last_node_friction = 1.0
-          last_selfcollision = False
-          last_groups = []
-          f.write("\t\t\"nodes\":[\n\t\t\t[\"id\", \"posX\", \"posY\", \"posZ\"],\n")
-          for n in self.nodes:
-              if n.mass != last_node_mass:
-                  f.write("\t\t\t{\"nodeWeight\": " + str(n.mass) + "},\n")
-                  last_node_mass = n.mass
-              if n.frictionCoef != last_node_friction:
-                  f.write("\t\t\t{\"frictionCoef\": " + str(n.frictionCoef) + "},\n")
-                  last_node_friction = n.frictionCoef
-              if n.selfCollision != last_selfcollision:
-                  f.write("\t\t\t{\"selfCollision\": " + str(n.selfCollision).lower() + "},\n")
-                  last_selfcollision = n.selfCollision
-              if n.group != last_groups:
-                  if len(n.group) > 0:
-                    f.write("\t\t\t{\"group\": [")
-                    for g in n.group:
-                      f.write("\"" + g + "\", ")
-                    f.seek(f.tell() - 2, 0)
-                    f.write("]},\n")
-                  else:
-                    f.write("\t\t\t{\"group\": \"\"},\n")
-                  
-                  last_groups = n.group
-                  
-              # write node line
-              f.write("\t\t\t[\"" + n.name + "\", " + str(n.x) + ", " + str(n.y) + ", " + str(n.z))
+        last_node_mass = -1.0
+        last_node_friction = 1.0
+        last_selfcollision = False
+        last_groups = []
+        f.write("\t\t\"nodes\":[\n\t\t\t[\"id\", \"posX\", \"posY\", \"posZ\"],\n")
+        for n in self.nodes:
+            if n.mass != last_node_mass:
+                f.write("\t\t\t{\"nodeWeight\": " + str(n.mass) + "},\n")
+                last_node_mass = n.mass
+            if n.frictionCoef != last_node_friction:
+                f.write("\t\t\t{\"frictionCoef\": " + str(n.frictionCoef) + "},\n")
+                last_node_friction = n.frictionCoef
+            if n.selfCollision != last_selfcollision:
+                f.write("\t\t\t{\"selfCollision\": " + str(n.selfCollision).lower() + "},\n")
+                last_selfcollision = n.selfCollision
+            if n.group != last_groups:
+                if len(n.group) > 0:
+                  f.write("\t\t\t{\"group\": [")
+                  for g in n.group:
+                    f.write("\"" + g + "\", ")
+                  f.seek(f.tell() - 2, 0)
+                  f.write("]},\n")
+                else:
+                  f.write("\t\t\t{\"group\": \"\"},\n")
+                
+                last_groups = n.group
+                
+            # write node line
+            f.write("\t\t\t[\"" + n.name + "\", " + str(n.x) + ", " + str(n.y) + ", " + str(n.z))
 
-              # write inline stuff
-              if n.coupler:
-                  f.write(", {\"couplerTag\":\"fifthwheel\"}")
-              
-              f.write("],\n")
-          f.write("\t\t],\n\n")
+            # write inline stuff
+            if n.coupler:
+                f.write(", {\"couplerTag\":\"fifthwheel\"}")
+            
+            f.write("],\n")
+        f.write("\t\t],\n\n")
       
       # write beams
       if len(self.beams) > 0:
-          last_beam_spring = -1.0
-          last_beam_damp = -1.0
-          last_beam_deform = -1.0
-          last_beam_strength = -1.0
-          last_beam_shortbound = -1.0
-          last_beam_longbound = -1.0
-          last_beam_precomp = -1.0
-          last_beam_type = 'NONEXISTANT'
-          last_beam_damprebound = False
-          last_breakgroup = ''
+        last_beam_spring = -1.0
+        last_beam_damp = -1.0
+        last_beam_deform = -1.0
+        last_beam_strength = -1.0
+        last_beam_shortbound = -1.0
+        last_beam_longbound = -1.0
+        last_beam_precomp = -1.0
+        last_beam_type = 'NONEXISTANT'
+        last_beam_damprebound = False
+        last_breakgroup = ''
 
-          f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
-          for b in self.beams:
-              # write vars if changed
-              if b.beamDampRebound != last_beam_damprebound:
-                  last_beam_damprebound = b.beamDampRebound
-                  f.write("\t\t\t{\"beamDampRebound\":" + str(b.beamDampRebound).lower() + "},\n")
-              if b.type != last_beam_type:
-                  last_beam_type = b.type
-                  f.write("\t\t\t{\"beamType\":\"|" + b.type + "\"},\n")
-              if b.beamSpring != last_beam_spring:
-                  last_beam_spring = b.beamSpring
-                  f.write("\t\t\t{\"beamSpring\":" + str(b.beamSpring) + "}\n")
-              if b.beamDamp != last_beam_damp:
-                  last_beam_damp = b.beamDamp
-                  f.write("\t\t\t{\"beamDamp\":" + str(b.beamDamp) + "}\n")
-              if b.beamDeform != last_beam_deform:
-                  last_beam_deform = b.beamDeform
-                  f.write("\t\t\t{\"beamDeform\":" + str(b.beamDeform) + "}\n")
-              if b.beamStrength != last_beam_strength:
-                  last_beam_strength = b.beamStrength
-                  f.write("\t\t\t{\"beamStrength\":" + str(b.beamStrength) + "}\n")
-              if b.beamShortBound != last_beam_shortbound:
-                  last_beam_shortbound = b.beamShortBound
-                  f.write("\t\t\t{\"beamShortBound\":" + str(b.beamShortBound) + "}\n")
-              if b.beamLongBound != last_beam_longbound:
-                  last_beam_longbound = b.beamLongBound
-                  f.write("\t\t\t{\"beamLongBound\":" + str(b.beamLongBound) + "}\n")
-              if b.beamPrecompression != last_beam_precomp:
-                  last_beam_precomp = b.beamPrecompression
-                  f.write("\t\t\t{\"beamPrecompression\":" + str(b.beamPrecompression) + "}\n")
-              if b.breakGroup != last_breakgroup:
-                  last_breakgroup = b.breakGroup
-                  f.write("\t\t\t{\"breakGroup\":\"" + b.breakGroup + "\"}\n")
-              # write beam line
-              f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n")
-              
-          f.write("\t\t],\n\n")
+        f.write("\t\t\"beams\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
+        for b in self.beams:
+            # write vars if changed
+            if b.beamDampRebound != last_beam_damprebound:
+                last_beam_damprebound = b.beamDampRebound
+                f.write("\t\t\t{\"beamDampRebound\":" + str(b.beamDampRebound).lower() + "},\n")
+            if b.type != last_beam_type:
+                last_beam_type = b.type
+                f.write("\t\t\t{\"beamType\":\"|" + b.type + "\"},\n")
+            if b.beamSpring != last_beam_spring:
+                last_beam_spring = b.beamSpring
+                f.write("\t\t\t{\"beamSpring\":" + str(b.beamSpring) + "}\n")
+            if b.beamDamp != last_beam_damp:
+                last_beam_damp = b.beamDamp
+                f.write("\t\t\t{\"beamDamp\":" + str(b.beamDamp) + "}\n")
+            if b.beamDeform != last_beam_deform:
+                last_beam_deform = b.beamDeform
+                f.write("\t\t\t{\"beamDeform\":" + str(b.beamDeform) + "}\n")
+            if b.beamStrength != last_beam_strength:
+                last_beam_strength = b.beamStrength
+                f.write("\t\t\t{\"beamStrength\":" + str(b.beamStrength) + "}\n")
+            if b.beamShortBound != last_beam_shortbound:
+                last_beam_shortbound = b.beamShortBound
+                f.write("\t\t\t{\"beamShortBound\":" + str(b.beamShortBound) + "}\n")
+            if b.beamLongBound != last_beam_longbound:
+                last_beam_longbound = b.beamLongBound
+                f.write("\t\t\t{\"beamLongBound\":" + str(b.beamLongBound) + "}\n")
+            if b.beamPrecompression != last_beam_precomp:
+                last_beam_precomp = b.beamPrecompression
+                f.write("\t\t\t{\"beamPrecompression\":" + str(b.beamPrecompression) + "}\n")
+            if b.breakGroup != last_breakgroup:
+                last_breakgroup = b.breakGroup
+                f.write("\t\t\t{\"breakGroup\":\"" + b.breakGroup + "\"}\n")
+            # write beam line
+            f.write("\t\t\t[\"" + b.id1 + "\", \"" + b.id2 + "\"],\n")
+            
+        f.write("\t\t],\n\n")
       
       # write rails (name, nodes are params)
       if len(self.rails) > 0:
@@ -449,85 +508,151 @@ class Rig:
           # write slidenode line
           f.write("\t\t\t[\"" + s.node + "\", \"" + s.rail + "\", true, true, " + str(s.tolerance) + ", " + str(s.spring) + ", " + str(s.strength).replace("inf", "100000000") + ", 345435],\n")
         f.write("\t\t],\n\n")
+      
+      # write diffs
+      if len(self.axles) > 0:
+        f.write("\t\t\"differentials\":[\n\t\t\t[\"wheelName1\", \"wheelName2\", \"type\", \"state\", \"closedTorque\", \"engineTorqueCoef\"],\n")
+        for a in self.axles:
+          f.write("\t\t\t[\"" + a.wid1 + "\", \"" + a.wid2 + "\", \"" + a.type + "\", \"" + a.state + "\", 10000, 1],\n")
+        f.write("\t\t],\n\n")
         
+      
       # write wheels
       if len(self.wheels) > 0:
-          last_wheel_spring = -1.0
-          last_wheel_damp = -1.0
-          last_numrays = -1
-          last_width = -1
-          last_radius = -1
-          last_propulsed = 0
-          last_mass = 0
-          
-          c_wheel_idx = 0
-          f.write("\t\t\"pressureWheels\":[\n\t\t\t[\"name\",\"hubGroup\",\"group\",\"node1:\",\"node2:\",\"nodeS\",\"nodeArm:\",\"wheelDir\"],\n")
-          for w in self.wheels:
-            # write vars if changed
-            if w.drivetype > 0 and last_propulsed == 0:
-              last_propulsed = 1
-              f.write("\t\t\t{\"propulsed\":" + str(last_propulsed) + "}\n")
-            elif w.drivetype == 0 and last_propulsed == 1:
-              last_propulsed = 0
-              f.write("\t\t\t{\"propulsed\":" + str(last_propulsed) + "}\n")
-              
+        last_wheel_spring = -1.0
+        last_wheel_damp = -1.0
+        last_tire_damp = -1.0
+        last_tire_spring = -1.0
+        last_numrays = -1
+        last_width = -1
+        last_hub_radius = -1
+        last_radius = -1
+        last_propulsed = 0
+        last_mass = 0
+        last_wheel_type = "NONE"
+        
+        c_wheel_idx = 0
+        
+        wrote_advanced_wheel = False
+        
+        f.write("\t\t\"pressureWheels\":[\n\t\t\t[\"name\",\"hubGroup\",\"group\",\"node1:\",\"node2:\",\"nodeS\",\"nodeArm:\",\"wheelDir\"],\n")
+        if len(self.brakes) > 0:
+          f.write("\t\t\t{\"brakeTorque\":" + str(self.brakes[0]) + ", \"parkingTorque\":" + str(self.brakes[1]) + "},\n")
+        for w in self.wheels:
+          # write global vars if changed
+          if last_wheel_type != w.type:
+            last_wheel_type = w.type
+            if w.type == "wheels":
+              f.write("\t\t\t{\"hasTire\":false},\n")
+              f.write("\t\t\t{\"hubNodeMaterial\":\"|NM_RUBBER\"},\n")
+            else:
+              f.write("\t\t\t{\"hasTire\":true},\n")
+              f.write("\t\t\t{\"hubNodeMaterial\":\"|NM_METAL\"},\n")
+            
+          if w.drivetype > 0 and last_propulsed == 0 and len(self.axles) == 0:
+            last_propulsed = 1
+            f.write("\t\t\t{\"propulsed\":" + str(last_propulsed) + "}\n")
+          elif w.drivetype == 0 and last_propulsed == 1 and len(self.axles) == 0:
+            last_propulsed = 0
+            f.write("\t\t\t{\"propulsed\":" + str(last_propulsed) + "}\n")
+          if w.width != last_width:
+            last_width = w.width
+            f.write("\t\t\t{\"hubWidth\":" + str(w.width) + "}\n")
+            f.write("\t\t\t{\"tireWidth\":" + str(w.width) + "}\n")
+          if w.num_rays != last_numrays:
+            last_numrays = w.num_rays
+            f.write("\t\t\t{\"numRays\":" + str(w.num_rays) + "}\n")
+          if w.mass != last_mass:
+            last_mass = w.mass
+            if w.type == "wheels":
+              f.write("\t\t\t{\"hubNodeWeight\":" + str(w.mass / (w.num_rays  * 2)) + "}\n")
+            else:
+              f.write("\t\t\t{\"nodeWeight\":" + str(w.mass / (w.num_rays  * 4)) + "}\n")
+              f.write("\t\t\t{\"hubNodeWeight\":" + str(w.mass / (w.num_rays  * 4)) + "}\n")
+           
+          # basic wheels
+          if w.type == "wheels":  
             if w.spring != last_wheel_spring:
               last_wheel_spring = w.spring
               f.write("\t\t\t{\"beamSpring\":" + str(w.spring) + "}\n")
             if w.damp != last_wheel_damp:
               last_wheel_damp = w.damp
               f.write("\t\t\t{\"beamDamp\":" + str(w.damp) + "}\n")
-            if w.num_rays != last_numrays:
-              last_numrays = w.num_rays
-              f.write("\t\t\t{\"numRays\":" + str(w.num_rays) + "}\n")
-            if w.width != last_width:
-              last_width = w.width
-              f.write("\t\t\t{\"hubWidth\":" + str(w.width) + "}\n")
-            if w.radius != last_radius:
-              last_radius = w.radius
+            if w.radius != last_hub_radius:
+              last_hub_radius = w.radius
               f.write("\t\t\t{\"hubRadius\":" + str(w.radius) + "}\n")
-            if w.mass != last_mass:
-              last_mass = w.mass
-              f.write("\t\t\t{\"hubWeight\":" + str(w.mass / w.num_rays) + "}\n")
+            
+          
+          # advanced wheels
+          if w.type == "wheels.advanced":
+            # first things first, 'global' stuff
+            if not wrote_advanced_wheel:
+              wrote_advanced_wheel = True
+              f.write("\t\t\t{\"disableMeshBreaking\":true}\n")
+              f.write("\t\t\t{\"disableHubMeshBreaking\":false}\n")
+              f.write("\t\t\t{\"enableTireReinfBeams\":true}\n")
+              f.write("\t\t\t{\"pressurePSI\":30}\n")
               
-            # write wheel line
-            # TODO : WRITE RUBBER HUB ON 'wheels'!
-            if w.type == "wheels":
-              snode = "\"" + w.snode + "\"" if w.snode != "node9999" else 9999
-              drivetype = -1 if w.drivetype == 2 else w.drivetype
-              f.write("\t\t\t[\"rorwheel" + str(c_wheel_idx) + "\", \"none\", \"none\", \"" + w.nid1 + "\", \"" + w.nid2 + "\", "  + str(snode) + ", \"" + w.armnode + "\", " + str(drivetype) + "],\n\n")
-
-            #increment wheel ID
-            c_wheel_idx += 1
-          f.write("\t\t],\n\n")
+            if w.hub_spring != last_wheel_spring:
+              last_wheel_spring = w.hub_spring
+              f.write("\t\t\t{\"beamSpring\":" + str(w.hub_spring) + "}\n")
+            if w.hub_damp != last_wheel_damp:
+              last_wheel_damp = w.hub_damp
+              f.write("\t\t\t{\"beamDamp\":" + str(w.hub_damp) + "}\n")
+            if w.tire_damp != last_tire_damp:
+              last_tire_damp = w.tire_damp
+              f.write("\t\t\t{\"wheelSideBeamDamp\":" + str(w.tire_damp) + "}\n")
+              f.write("\t\t\t{\"wheelSideBeamDampExpansion\":" + str(w.tire_damp) + "}\n")
+              f.write("\t\t\t{\"wheelReinfBeamDamp\":" + str(w.tire_damp) + "}\n")
+              f.write("\t\t\t{\"wheelTreadBeamDamp\":" + str(w.tire_damp) + "}\n")
+              f.write("\t\t\t{\"wheelPeripheryBeamDamp\":" + str(w.tire_damp) + "}\n")
+            if w.tire_spring != last_tire_spring:
+              last_tire_spring = w.tire_spring
+              f.write("\t\t\t{\"wheelSideBeamSpringExpansion\":" + str(w.tire_spring) + "}\n")
+              f.write("\t\t\t{\"wheelReinfBeamSpring\":" + str(w.tire_spring) + "}\n")
+              f.write("\t\t\t{\"wheelTreadBeamSpring\":" + str(w.tire_spring) + "}\n")
+              f.write("\t\t\t{\"wheelPeripheryBeamSpring\":" + str(w.tire_spring) + "}\n")
+            if w.tire_radius != last_radius:
+              last_radius = w.tire_radius
+              f.write("\t\t\t{\"radius\":" + str(w.tire_radius) + "}\n")
+              
+          # write wheel line
+          snode = "\"" + w.snode + "\"" if w.snode != "node9999" else 9999
+          drivetype = -1 if w.drivetype == 2 else w.drivetype
+          f.write("\t\t\t[\"rorwheel" + str(c_wheel_idx) + "\", \"none\", \"none\", \"" + w.nid1 + "\", \"" + w.nid2 + "\", "  + str(snode) + ", \"" + w.armnode + "\", " + str(drivetype) + "],\n\n") 
+          
+          #increment wheel ID
+          c_wheel_idx += 1
+        f.write("\t\t],\n\n")
+      
       
       # write hydros
       if len(self.hydros) > 0:
-          last_beam_spring = -1.0
-          last_beam_damp = -1.0
-          last_beam_deform = -1.0
-          last_beam_strength = -1.0
+        last_beam_spring = -1.0
+        last_beam_damp = -1.0
+        last_beam_deform = -1.0
+        last_beam_strength = -1.0
 
-          f.write("\t\t\"hydros\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
-          for h in self.hydros:
-              # write vars if changed
-              if h.beamSpring != last_beam_spring:
-                  last_beam_spring = h.beamSpring
-                  f.write("\t\t\t{\"beamSpring\":" + str(h.beamSpring) + "}\n")
-              if h.beamDamp != last_beam_damp:
-                  last_beam_damp = h.beamDamp
-                  f.write("\t\t\t{\"beamDamp\":" + str(h.beamDamp) + "}\n")
-              if h.beamDeform != last_beam_deform:
-                  last_beam_deform = h.beamDeform
-                  f.write("\t\t\t{\"beamDeform\":" + str(h.beamDeform) + "}\n")
-              if h.beamStrength != last_beam_strength:
-                  last_beam_strength = h.beamStrength
-                  f.write("\t\t\t{\"beamStrength\":" + str(h.beamStrength) + "}\n")
-              
-              # write hydro line
-              f.write("\t\t\t[\"" + h.id1 + "\", \"" + h.id2 + "\", {\"inputSource\": \"steering\", \"inputFactor\": " + str(h.factor) + "}],\n")
-              
-          f.write("\t\t],\n")
+        f.write("\t\t\"hydros\":[\n\t\t\t[\"id1:\", \"id2:\"],\n")
+        for h in self.hydros:
+            # write vars if changed
+            if h.beamSpring != last_beam_spring:
+                last_beam_spring = h.beamSpring
+                f.write("\t\t\t{\"beamSpring\":" + str(h.beamSpring) + "}\n")
+            if h.beamDamp != last_beam_damp:
+                last_beam_damp = h.beamDamp
+                f.write("\t\t\t{\"beamDamp\":" + str(h.beamDamp) + "}\n")
+            if h.beamDeform != last_beam_deform:
+                last_beam_deform = h.beamDeform
+                f.write("\t\t\t{\"beamDeform\":" + str(h.beamDeform) + "}\n")
+            if h.beamStrength != last_beam_strength:
+                last_beam_strength = h.beamStrength
+                f.write("\t\t\t{\"beamStrength\":" + str(h.beamStrength) + "}\n")
+            
+            # write hydro line
+            f.write("\t\t\t[\"" + h.id1 + "\", \"" + h.id2 + "\", {\"inputSource\": \"steering\", \"inputFactor\": " + str(h.factor) + ", \"inRate\": 0.25, \"outRate\": 0.25}],\n")
+            
+        f.write("\t\t],\n")
       
       
       f.write("\t}\n}")
