@@ -29,6 +29,7 @@ class Rig:
       self.minimass = 50
       self.dry_weight = 10000
       self.load_weight = 10000
+      self.triangles = []
       self.type = 'truck'
     
     def calculate_masses(self):
@@ -281,6 +282,14 @@ class Rig:
               self.brakes = [brakeforce, parkforce]
           elif current_section == "flexbodies" and num_components >= 10:
               self.flexbodies.append(parser.ParseFlexbody(line_cmps))
+          elif current_section == "submesh" and num_components >= 4:
+              if 'c' in line_cmps[3]:
+                # collision triangle
+                n0 = parser.ParseNodeName(line_cmps[0])
+                n1 = parser.ParseNodeName(line_cmps[1])
+                n2 = parser.ParseNodeName(line_cmps[2])
+                self.triangles.append([n0, n1, n2])
+                
       # final checks
       if self.torquecurve is None and self.engine is not None:
         self.torquecurve = curves.get_curve("default")
@@ -516,6 +525,12 @@ class Rig:
           f.write("\t\t\t[\"" + a.wid1 + "\", \"" + a.wid2 + "\", \"" + a.type + "\", \"" + a.state + "\", 10000, 1],\n")
         f.write("\t\t],\n\n")
         
+      # write triangles
+      if len(self.triangles) > 0:
+        f.write("\t\t\"triangles\":[\n\t\t\t[\"id1:\", \"id2:\", \"id3:\"],\n\t\t\t{\"dragCoef\":0},\n")
+        for t in self.triangles:
+          f.write("\t\t\t[\"" + t[0] + "\", \"" + t[1] + "\", \"" + t[2] + "\"],\n")
+        f.write("\t\t],\n\n")
       
       # write wheels
       if len(self.wheels) > 0:

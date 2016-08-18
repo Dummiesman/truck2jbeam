@@ -323,9 +323,9 @@ def ParseWheel(components):
   spring = float(components[10])
   damp = float(components[11])
   
-  # fix negative arm node ids
-  if armnode[0] == "-":
-    armnode = ParseNodeName(armnode[1:])
+  # fix negative s node ids
+  if snode[0] == "-":
+    snode = ParseNodeName(armnode[1:])
     
   return WheelTypeA(radius, width, numrays, nid1, nid2, snode, braketype, drivetype, armnode, mass, spring, damp)
 
@@ -347,9 +347,9 @@ def ParseFlexbodyWheel(components):
   hub_spring = float(components[13])
   hub_damp = float(components[14])
   
-  # fix negative arm node ids
-  if armnode[0] == "-":
-    armnode = ParseNodeName(armnode[1:])
+  # fix negative s node ids
+  if snode[0] == "-":
+    snode = ParseNodeName(armnode[1:])
 
   wheel_obj = WheelTypeB(tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp)
   wheel_obj.subtype = "flexbodywheels"
@@ -373,9 +373,9 @@ def ParseMeshWheel(components):
   tire_spring = hub_spring
   tire_damp = hub_damp
   
-  # fix negative arm node ids
-  if armnode[0] == "-":
-    armnode = ParseNodeName(armnode[1:])
+  # fix negative s node ids
+  if snode[0] == "-":
+    snode = ParseNodeName(armnode[1:])
   
   wheel_obj = WheelTypeB(tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp)
   wheel_obj.subtype = "meshwheels"
@@ -399,9 +399,9 @@ def ParseWheel2(components):
   tire_spring = float(components[13])
   tire_damp = float(components[14])
   
-  # fix negative arm node ids
-  if armnode[0] == "-":
-    armnode = ParseNodeName(armnode[1:])
+  # fix negative s node ids
+  if snode[0] == "-":
+    snode = ParseNodeName(armnode[1:])
     
   wheel_obj = WheelTypeB(tire_radius, hub_radius, width, num_rays, nid1, nid2, snode, braketype, drivetype, armnode, mass, tire_spring, tire_damp, hub_spring, hub_damp)
   wheel_obj.subtype = "wheels2"
