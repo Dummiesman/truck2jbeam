@@ -12,6 +12,8 @@ def VectorDistance(x1, y1, z1, x2, y2, z2):
     
 class Rig:
     def __init__(self):
+      self.name = "Untitled Rig Class"
+      self.authors = []
       self.nodes = []
       self.beams = []
       self.hydros = []
@@ -106,7 +108,14 @@ class Rig:
       
       # parse .truck
       current_section = None
+      lines_parsed = 0
       for line in trucklines:
+          # title?
+          if lines_parsed == 0:
+            self.name = line.replace("\n","")
+            lines_parsed += 1
+            continue
+            
           # parse line
           line_cmps = parser.PrepareLine(line)
           
@@ -133,6 +142,9 @@ class Rig:
                   cur_detach_group = int(line_cmps[1])
               elif section_name == "rollon":
                   self.rollon = True
+              elif section_name == "author" :
+                  author_data = line_cmps[1].strip().split()
+                  self.authors.append(author_data[2].replace("_", " "))
               elif section_name == "forset" and len(self.flexbodies) > 0 :
                   forset = parser.ParseForset(line_cmps)
                   group = parser.ParseGroupName(self.flexbodies[len(self.flexbodies) - 1].mesh)
@@ -292,7 +304,8 @@ class Rig:
                 n1 = parser.ParseNodeName(line_cmps[1])
                 n2 = parser.ParseNodeName(line_cmps[2])
                 self.triangles.append([n0, n1, n2])
-                
+          
+          lines_parsed += 1
       # final checks
       if self.torquecurve is None and self.engine is not None:
         self.torquecurve = curves.get_curve("default")
@@ -305,7 +318,7 @@ class Rig:
       
       # open file and write it
       f = open(filename, 'w')
-      f.write("{\n\t\"truck2jbeam\":{\n\t\t\"slotType\": \"main\",\n\n\t\t\"information\":{\n\t\t\t\"name\": \"truck2jbeam\",\n\t\t\t\"authors\": \"insert your name here\"\n\t\t}\n\n")
+      f.write("{\n\t\"truck2jbeam\":{\n\t\t\"slotType\": \"main\",\n\n\t\t\"information\":{\n\t\t\t\"name\": \"" + self.name + "\",\n\t\t\t\"authors\": \"insert your name here\"\n\t\t}\n\n")
       
       # write refnodes
       if self.refnodes is not None:
