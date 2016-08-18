@@ -30,6 +30,7 @@ class Rig:
       self.dry_weight = 10000
       self.load_weight = 10000
       self.triangles = []
+      self.rollon = False
       self.type = 'truck'
     
     def calculate_masses(self):
@@ -130,6 +131,8 @@ class Rig:
                   last_friction = defaults[1]
               elif section_name == "detacher_group":
                   cur_detach_group = int(line_cmps[1])
+              elif section_name == "rollon":
+                  self.rollon = True
               elif section_name == "forset" and len(self.flexbodies) > 0 :
                   forset = parser.ParseForset(line_cmps)
                   group = parser.ParseGroupName(self.flexbodies[len(self.flexbodies) - 1].mesh)
@@ -553,6 +556,10 @@ class Rig:
         f.write("\t\t\"pressureWheels\":[\n\t\t\t[\"name\",\"hubGroup\",\"group\",\"node1:\",\"node2:\",\"nodeS\",\"nodeArm:\",\"wheelDir\"],\n")
         if len(self.brakes) > 0:
           f.write("\t\t\t{\"brakeTorque\":" + str(self.brakes[0]) + ", \"parkingTorque\":" + str(self.brakes[1]) + "},\n")
+          
+        if self.rollon:
+          f.write("\t\t\t{\"selfCollision\":true}\n")
+        
         for w in self.wheels:
           # write global vars if changed
           if last_wheel_type != w.type:
