@@ -279,8 +279,8 @@ class Rig:
               self.wheels.append(parser.ParseMeshWheel(line_cmps))
           elif current_section == "meshwheels2" and num_components >= 14:
               wheel_obj = parser.ParseMeshWheel(line_cmps)
-              wheel_obj.hub_spring = last_beamspring
-              wheel_obj.hub_damp = last_beamdamp
+              wheel_obj.hub_spring = last_beamspring * springscale
+              wheel_obj.hub_damp = last_beamdamp * dampscale
               wheel_obj.subtype = "meshwheels2"
               self.wheels.append(wheel_obj)
           elif current_section == "flexbodywheels" and num_components >= 16:
@@ -409,12 +409,12 @@ class Rig:
           ynode = next((x for x in self.nodes if x.name == fb.ynode), None)
           
           real_x_offset = refnode.x + (xnode.x - refnode.x) * fb.offsetX
-          real_y_offset = refnode.y + (xnode.y - refnode.y) * fb.offsetY
-          real_z_offset = fb.offsetZ
+          real_y_offset = refnode.y + (ynode.y - refnode.y) * fb.offsetY
+          real_z_offset = fb.offsetZ - refnode.z
           
           real_x_rotation = fb.rotX
           real_y_rotation = fb.rotY
-          real_z_rotation = fb.rotZ - 180
+          real_z_rotation = fb.rotZ 
           
           f.write("\t\t\t[\"" + parser.ParseGroupName(fb.mesh) + "\", [\"" + parser.ParseGroupName(fb.mesh) + "\"], [], {\"pos\":{\"x\":" + str(real_x_offset) + ", \"y\":" + str(real_y_offset) + ", \"z\":" + str(real_z_offset) + "}, \"rot\":{\"x\":" + str(real_x_rotation) + ", \"y\":" + str(real_y_rotation) + ", \"z\":" + str(real_z_rotation) + "}, \"scale\":{\"x\":1, \"y\":1, \"z\":1}}],\n")
         f.write("\t\t],\n\n")  
