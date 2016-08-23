@@ -207,7 +207,7 @@ class Rig:
               axle_cmps = parser.PrepareLine(line, True)
               w1 = axle_cmps[0][3:-1].split(" ")
               w2 = axle_cmps[1][3:-1].split(" ")
-              dt = axle_cmps[2][3:-1]
+              dt = axle_cmps[2][2:axle_cmps[2].index(")")]
               
               # parse node names
               for n in range(2):
