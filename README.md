@@ -45,8 +45,6 @@ truck2jbeam supports the following sections in rig files
 
 Find the rig file you would like to convert, and drag it onto `truck2jbeam.py`, you should then find an outputted jbeam alongside the rig file
 
-If there are any mods that are causing the converter to break, don't hesitate to contact me via BeamNG or Rigs of Rods forums
-
 ----
 ## Requirements
 * A Python 3 installation
